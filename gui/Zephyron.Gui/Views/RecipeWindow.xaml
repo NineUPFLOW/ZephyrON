@@ -15,7 +15,7 @@
         </Grid.RowDefinitions>
 
         <StackPanel Grid.Row="0">
-            <TextBlock x:Name="Head" Style="{StaticResource Title}" FontSize="20" />
+            <TextBlock x:Name="Head" Style="{StaticResource DialogTitle}" />
             <TextBlock Style="{StaticResource Caption}" Margin="0,8,0,0" TextWrapping="Wrap"
                        Text="Рецепт — это то, что winws2 сделает с рукопожатием: подделает пакет, порежет его, переставит куски. Наборы взяты из вашего пресета: там они подобраны под живые блокировки, а не выдуманы нами." />
         </StackPanel>

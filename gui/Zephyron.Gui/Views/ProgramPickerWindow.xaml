@@ -21,7 +21,7 @@
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <TextBlock Grid.Row="0" Text="Выберите программу" Style="{StaticResource Title}" FontSize="20" />
+        <TextBlock Grid.Row="0" Text="Выберите программу" Style="{StaticResource DialogTitle}" />
 
         <TextBox Grid.Row="1" x:Name="Search" Margin="0,16,0,0" TextChanged="OnSearch"
                  gui:Hint.Text="Поиск по имени или пути…" />

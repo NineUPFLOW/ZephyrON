@@ -53,7 +53,7 @@ public sealed class ResourceKeyTests
 
         Sta.Run(() =>
         {
-            foreach (var theme in new[] { "Tokens", "Palette", "Controls", "Light" })
+            foreach (var theme in new[] { "Tokens", "Breeze", "Controls", "Palette", "Light" })
             {
                 var dictionary = new ResourceDictionary
                 {
@@ -127,7 +127,7 @@ public sealed class ResourceKeyTests
     /// Тот же, что в App.xaml и в Sta.Prepare: токены, палитра, стили. Ссылка
     /// на имя из более раннего словаря законна; из более позднего — нет.
     /// </remarks>
-    private static readonly string[] MergeOrder = ["Tokens.xaml", "Palette.xaml", "Controls.xaml"];
+    private static readonly string[] MergeOrder = ["Tokens.xaml", "Breeze.xaml", "Controls.xaml"];
 
     [Fact]
     public void Every_static_reference_is_declared_before_its_use()

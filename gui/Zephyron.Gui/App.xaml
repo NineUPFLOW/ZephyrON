@@ -9,9 +9,10 @@
                     отступы и размеры через StaticResource, а словарь виден
                     только ниже своего места. Палитра — после токенов и до
                     стилей: цветам токены не нужны, а стилям нужны оба.
+                    Breeze.xaml — основная палитра и запас, если папки тем нет.
                 -->
                 <ResourceDictionary Source="Theme/Tokens.xaml" />
-                <ResourceDictionary Source="Theme/Palette.xaml" />
+                <ResourceDictionary Source="Theme/Breeze.xaml" />
                 <ResourceDictionary Source="Theme/Controls.xaml" />
             </ResourceDictionary.MergedDictionaries>
         </ResourceDictionary>

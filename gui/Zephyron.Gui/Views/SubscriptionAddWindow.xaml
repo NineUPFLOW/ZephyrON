@@ -14,7 +14,7 @@
         добавить. Ссылка и ключи — паролем: они равносильны паролю.
     -->
     <StackPanel LayoutTransform="{DynamicResource UiScaleTransform}" Margin="28,24,28,24">
-        <TextBlock Text="Добавить подписку" Style="{StaticResource Title}" FontSize="20" />
+        <TextBlock Text="Добавить подписку" Style="{StaticResource DialogTitle}" />
 
         <Grid Margin="0,18,0,0">
             <Grid.ColumnDefinitions>

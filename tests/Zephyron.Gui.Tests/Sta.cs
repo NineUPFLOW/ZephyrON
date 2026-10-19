@@ -91,7 +91,7 @@ internal static class Sta
             // и толщины через StaticResource, а словарь виден только ниже
             // своего места. Без них разбор стилей падает на «Cannot find
             // resource named 'RMd'» — окно в тесте не собиралось вовсе.
-            foreach (var theme in new[] { "Tokens", "Palette", "Controls" })
+            foreach (var theme in new[] { "Tokens", "Breeze", "Controls" })
             {
                 app.Resources.MergedDictionaries.Add(new ResourceDictionary
                 {

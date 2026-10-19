@@ -34,7 +34,7 @@
 
     <ScrollViewer Grid.Row="0" Style="{StaticResource PageScroll}" Padding="22,20,22,0">
         <StackPanel>
-            <TextBlock Text="Настройки туннеля" Style="{StaticResource Title}" />
+            <TextBlock Text="Настройки туннеля" Style="{StaticResource DialogTitle}" />
             <TextBlock Style="{StaticResource Caption}" Margin="0,6,0,0" TextWrapping="Wrap"
                        Text="Всё здесь применяется при следующем запуске движков. Подписки и серверы остались на вкладке «VPN»." />
 

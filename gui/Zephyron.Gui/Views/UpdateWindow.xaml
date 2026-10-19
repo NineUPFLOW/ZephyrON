@@ -62,7 +62,7 @@
             </Border>
 
             <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                <TextBlock x:Name="Heading" Text="Доступно обновление" Style="{StaticResource Title}" />
+                <TextBlock x:Name="Heading" Text="Доступно обновление" Style="{StaticResource DialogTitle}" />
                 <TextBlock x:Name="Subtitle" Style="{StaticResource Caption}" Margin="0,4,0,0" TextWrapping="Wrap" />
             </StackPanel>
 

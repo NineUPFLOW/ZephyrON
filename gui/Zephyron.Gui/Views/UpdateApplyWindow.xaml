@@ -21,7 +21,7 @@
         </Grid.RowDefinitions>
 
         <StackPanel Grid.Row="0">
-            <TextBlock x:Name="Heading" Style="{StaticResource Title}" Text="Zephyron" />
+            <TextBlock x:Name="Heading" Style="{StaticResource DialogTitle}" Text="Zephyron" />
             <TextBlock Text="Обновление" FontSize="15" FontWeight="SemiBold" Margin="0,2,0,0"
                        Foreground="{DynamicResource Muted}" />
         </StackPanel>

@@ -19,7 +19,7 @@
         </Grid.RowDefinitions>
 
         <StackPanel>
-            <TextBlock x:Name="Heading" Text="Своя тема" Style="{StaticResource Title}" />
+            <TextBlock x:Name="Heading" Text="Своя тема" Style="{StaticResource DialogTitle}" />
             <TextBlock Style="{StaticResource Caption}" Margin="0,6,0,0" TextWrapping="Wrap"
                        Text="Начинается с цветов выбранной сейчас темы, и каждая правка сразу видна на окне. Смысл зелёного, красного и жёлтого общий для всех тем — оттенки ваши. Нечитаемый цвет отмечен в своей строке, а «Поправить нечитаемое» подстроит его светлоту, не трогая выбранное." />
         </StackPanel>

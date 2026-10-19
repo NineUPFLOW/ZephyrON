@@ -34,6 +34,75 @@
         <Setter Property="FontSize" Value="12" />
     </Style>
 
+    <!--
+        Заголовок окна-диалога. Отдельно от Title и PageTitle: у диалога своя
+        мера — он не должен повторять кегль страницы, иначе окно на четыре
+        строки выглядит как раздел, обрезанный до угла. 20 — верх шкалы
+        подписей из задания, ниже PageTitle (27).
+    -->
+    <Style x:Key="DialogTitle" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{DynamicResource DisplayFont}" />
+        <Setter Property="Foreground" Value="{DynamicResource Text}" />
+        <Setter Property="FontSize" Value="20" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="TextWrapping" Value="Wrap" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+
+    <!--
+        Кегли заголовков — из шкалы задания: страница 26–32, секция 20–24,
+        карточка 15–18, текст 13–15, подпись 11–13. Объявлены здесь, до
+        PageHead: шаблон шапки берёт их через StaticResource, а он ищет
+        только выше себя, — ссылка вперёд роняла показ окна.
+        Ограниченная шкала: не каждый заголовок со своим кеглем, иначе
+        иерархия перестаёт читаться.
+    -->
+    <Style x:Key="PageTitle" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{DynamicResource DisplayFont}" />
+        <Setter Property="Foreground" Value="{DynamicResource Text}" />
+        <Setter Property="FontSize" Value="27" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="TextWrapping" Value="Wrap" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+
+    <Style x:Key="SectionTitle" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{DynamicResource UiFont}" />
+        <Setter Property="Foreground" Value="{DynamicResource Text}" />
+        <Setter Property="FontSize" Value="17" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="TextWrapping" Value="Wrap" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+
+    <Style x:Key="CardTitle" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{DynamicResource UiFont}" />
+        <Setter Property="Foreground" Value="{DynamicResource Text}" />
+        <Setter Property="FontSize" Value="15" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="TextWrapping" Value="Wrap" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+
+    <Style x:Key="Body" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{DynamicResource UiFont}" />
+        <Setter Property="Foreground" Value="{DynamicResource Text}" />
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="TextWrapping" Value="Wrap" />
+    </Style>
+
+    <!--
+        Мелкая подпись под заголовком карточки или строки. Перенос — всегда:
+        пояснения у нас длинные и по-русски, а обрезанное многоточием
+        объяснение хуже отсутствующего.
+    -->
+    <Style x:Key="Note" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{DynamicResource UiFont}" />
+        <Setter Property="Foreground" Value="{DynamicResource Muted}" />
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="TextWrapping" Value="Wrap" />
+    </Style>
+
     <Style x:Key="PageHead" TargetType="ContentControl">
         <!--
             Шапка раздела. Кнопки — содержимым, имя и подпись —
@@ -43,39 +112,34 @@
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="ContentControl">
-                    <Border CornerRadius="{StaticResource RXL}" Padding="22,20,22,20"
-                            BorderThickness="{StaticResource Stroke}"
-                            BorderBrush="{DynamicResource Border}">
-                        <Border.Background>
-                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,0.4">
-                                <GradientStop Color="{DynamicResource SurfaceColor}" Offset="0" />
-                                <GradientStop Color="{DynamicResource RaisedColor}" Offset="1" />
-                            </LinearGradientBrush>
-                        </Border.Background>
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto" />
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
+                    <Grid Margin="0,0,0,20">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
 
-                            <!-- Акцентная черта: тонкая, от верха до низа — знак раздела. -->
-                            <Border Grid.Column="0" Width="5" CornerRadius="{StaticResource RPill}"
-                                    Background="{DynamicResource Accent}" Margin="0,2,18,2" />
+                        <!--
+                            Заголовок и подпись прямо на подложке, без карточки
+                            и без градиента: в Breeze Light воздух вокруг
+                            заголовка и есть разделитель, а лишняя поверхность
+                            спорила бы с карточками ниже. Акцентная черта слева
+                            осталась — она называет раздел, не занимая места.
+                        -->
+                        <StackPanel Grid.Column="0" Orientation="Horizontal" Margin="0,0,16,0">
+                            <Border Width="4" CornerRadius="{StaticResource RPill}"
+                                    Background="{DynamicResource Accent}" Margin="0,3,16,3" />
 
-                            <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="0,0,16,0">
-                                <TextBlock Style="{StaticResource Title}" FontSize="26"
-                                           TextWrapping="Wrap"
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock Style="{StaticResource PageTitle}"
                                            Text="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=(local:PageHead.Title)}" />
-                                <TextBlock Style="{StaticResource Caption}" Margin="0,6,0,0"
-                                           TextWrapping="Wrap"
+                                <TextBlock Style="{StaticResource Note}" Margin="0,5,0,0"
                                            Text="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=(local:PageHead.Subtitle)}" />
                             </StackPanel>
+                        </StackPanel>
 
-                            <ContentPresenter Grid.Column="2" VerticalAlignment="Center"
-                                              HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" />
-                        </Grid>
-                    </Border>
+                        <ContentPresenter Grid.Column="1" VerticalAlignment="Center"
+                                          HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" />
+                    </Grid>
                 </ControlTemplate>
             </Setter.Value>
         </Setter>
@@ -99,6 +163,32 @@
         <Setter Property="Padding" Value="{StaticResource CardPad}" />
         <!-- Стекло под карточкой, если у темы фон и размытие включено (Glass.cs). -->
         <Setter Property="local:Glass.IsOn" Value="True" />
+    </Style>
+
+    <!--
+        Тень под карточкой. Мягкая и вторичная: на светлом фоне именно она,
+        а не тяжёлая рамка, отделяет карточку от подложки. Отдельным
+        ресурсом, а не в шаблоне Card: тень — эффект, и её стоит вешать
+        только там, где карточка действительно парит (плитки, меню,
+        всплывающие подсказки), а не на каждой строке списка — иначе
+        перерисовка всего списка на каждом кадре.
+    -->
+    <DropShadowEffect x:Key="CardShadow" BlurRadius="18" ShadowDepth="3"
+                      Direction="270" Opacity="0.10" Color="#FF20243A"
+                      RenderingBias="Performance" />
+
+    <!-- Тень всплывающих поверхностей: чуть заметнее, они над всем окном. -->
+    <DropShadowEffect x:Key="PopShadow" BlurRadius="26" ShadowDepth="5"
+                      Direction="270" Opacity="0.16" Color="#FF20243A"
+                      RenderingBias="Performance" />
+
+    <!--
+        Карточка с тенью — для плиток на «Главной» и меню. Отдельный ключ,
+        а не свойство Card: тень у каждой строки длинного списка заметно
+        бьёт по перерисовке, а на глаз не отличается от рамки.
+    -->
+    <Style x:Key="CardRaised" TargetType="Border" BasedOn="{StaticResource Card}">
+        <Setter Property="Effect" Value="{StaticResource CardShadow}" />
     </Style>
 
     <!--
@@ -555,6 +645,7 @@
     <Style x:Key="RailItem" TargetType="RadioButton">
         <Setter Property="Cursor" Value="Hand" />
         <Setter Property="Margin" Value="10,3" />
+        <Setter Property="ToolTip" Value="{Binding Content, RelativeSource={RelativeSource Self}}" />
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="RadioButton">
@@ -583,7 +674,8 @@
                             <TextBlock x:Name="Label"
                                        Text="{TemplateBinding Content}"
                                        Foreground="{DynamicResource Muted}"
-                                       FontSize="13" VerticalAlignment="Center" />
+                                       FontSize="13" VerticalAlignment="Center"
+                                       TextTrimming="CharacterEllipsis" />
 
                             <!-- Точка «есть новое» (RailBadge.cs). -->
                             <Ellipse x:Name="Badge" Width="7" Height="7" Margin="8,1,0,0"
@@ -592,6 +684,21 @@
                         </StackPanel>
                     </Border>
                     <ControlTemplate.Triggers>
+                        <!--
+                            Узкое меню: остаётся один значок, подпись прячется,
+                            а название раздела уходит во всплывающую подсказку
+                            (свойство ToolTip самого пункта). Не сворачиваем
+                            значки меньше — попасть в них мышью ещё можно,
+                            а вот убрать подпись совсем нельзя.
+                        -->
+                        <Trigger Property="local:RailCompact.Is" Value="True">
+                            <Setter TargetName="Label" Property="Visibility" Value="Collapsed" />
+                            <Setter TargetName="Badge" Property="Margin" Value="0,-10,-4,0" />
+                            <Setter TargetName="Badge" Property="VerticalAlignment" Value="Top" />
+                            <Setter TargetName="Glyph" Property="Margin" Value="0" />
+                            <Setter TargetName="Glyph" Property="HorizontalAlignment" Value="Center" />
+                            <Setter TargetName="Shape" Property="Padding" Value="10,11" />
+                        </Trigger>
                         <Trigger Property="local:RailBadge.Shown" Value="True">
                             <Setter TargetName="Badge" Property="Visibility" Value="Visible" />
                         </Trigger>
@@ -768,12 +875,16 @@
         слишком незаметен, стоит сделать подложку»).
     -->
     <Style x:Key="RailPanel" TargetType="Border">
-        <!-- Плавающая карточка, а не полоса от края до края: у меню свои
-             скруглённые углы со всех сторон и рамка на тон светлее фона. -->
+        <!--
+            Полоса от левого края окна: скруглены только правые углы, а левые
+            вровень с краем. Плавающая карточка выглядела уютно, но на узком
+            окне съедала поля с обеих сторон и ужимала раздел; полоса отдаёт
+            меню ровно свою ширину и ни точкой больше.
+        -->
         <Setter Property="Background" Value="{DynamicResource RailFill}" />
         <Setter Property="BorderBrush" Value="{DynamicResource Border}" />
-        <Setter Property="BorderThickness" Value="{StaticResource Stroke}" />
-        <Setter Property="CornerRadius" Value="{StaticResource RLg}" />
+        <Setter Property="BorderThickness" Value="0,0,1,0" />
+        <Setter Property="CornerRadius" Value="0" />
         <Setter Property="local:Glass.IsOn" Value="True" />
     </Style>
 
@@ -1061,6 +1172,126 @@
         <Setter Property="FontSize" Value="15" />
         <Setter Property="Foreground" Value="{DynamicResource Muted}" />
         <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+
+    <!--
+        Статусная плашка: точка состояния и слово рядом. Точка одна, без
+        размытого свечения — на светлом фоне оно выглядит грязью, а не
+        подсветкой. Цвет состояния дублируется словом в разметке, потому
+        что цвет — не единственный способ показать состояние.
+    -->
+    <Style x:Key="StatusPill" TargetType="Border">
+        <Setter Property="Background" Value="{DynamicResource Raised}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource Border}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="{StaticResource RPill}" />
+        <Setter Property="Padding" Value="11,4" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+
+    <Style x:Key="StatusText" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{DynamicResource UiFont}" />
+        <Setter Property="Foreground" Value="{DynamicResource Text}" />
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+
+    <!--
+        Точка состояния. Без свечения: на светлой подложке размытое пятно
+        вокруг неё читается как грязь. Цвет ставит разметка по состоянию,
+        а слово рядом называет состояние словами.
+    -->
+    <Style x:Key="StatusDot" TargetType="Ellipse">
+        <Setter Property="Width" Value="9" />
+        <Setter Property="Height" Value="9" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="Fill" Value="{DynamicResource Faint}" />
+    </Style>
+
+    <!--
+        Плитка-кнопка: значок на подложке, под ним подпись. Для быстрых
+        действий и переходов — там, где ряд кнопок с подписями занимает
+        всю ширину, а по смыслу это четыре разных дела.
+    -->
+    <Style x:Key="QuickTile" TargetType="Button" BasedOn="{StaticResource Ghost}">
+        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="Padding" Value="14,12" />
+        <Setter Property="MinHeight" Value="56" />
+    </Style>
+
+    <!--
+        Плитка параметра с выключателем: слева значок, по центру подпись,
+        справа тумблер. Одна на «Десинке», «DNS» и прочих разделах, где
+        прежде каждая настройка была отдельной карточкой и пять настроек
+        занимали полстраницы.
+    -->
+    <Style x:Key="ParamTile" TargetType="Border">
+        <Setter Property="Background" Value="{DynamicResource Surface}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource Border}" />
+        <Setter Property="BorderThickness" Value="{StaticResource Stroke}" />
+        <Setter Property="CornerRadius" Value="{StaticResource RLg}" />
+        <Setter Property="Padding" Value="16,14" />
+        <Setter Property="local:Glass.IsOn" Value="True" />
+    </Style>
+
+    <!--
+        Состояние «здесь пока пусто». Не украшение: пустой список без слова
+        выглядит как сломанный, и человек не понимает, ждать ему или чинить.
+    -->
+    <Style x:Key="Empty" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{DynamicResource UiFont}" />
+        <Setter Property="Foreground" Value="{DynamicResource Faint}" />
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="TextWrapping" Value="Wrap" />
+        <Setter Property="TextAlignment" Value="Center" />
+        <Setter Property="Margin" Value="0,18,0,18" />
+    </Style>
+
+    <!--
+        Полоса-сегмент: переключатель из двух-трёх равноправных вариантов
+        (через туннель / напрямую). Внутри одного контейнера, а не тремя
+        кнопками подряд: так видно, что выбор ровно один.
+    -->
+    <Style x:Key="Segmented" TargetType="Border">
+        <Setter Property="Background" Value="{DynamicResource Raised}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource Border}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="{StaticResource RMd}" />
+        <Setter Property="Padding" Value="3" />
+        <Setter Property="HorizontalAlignment" Value="Left" />
+    </Style>
+
+    <Style x:Key="Segment" TargetType="RadioButton">
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="Foreground" Value="{DynamicResource Text}" />
+        <Setter Property="FontFamily" Value="{DynamicResource UiFont}" />
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="Padding" Value="16,7" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="RadioButton">
+                    <Border x:Name="Shape" Background="Transparent"
+                            CornerRadius="{StaticResource RSm}" Padding="{TemplateBinding Padding}">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Shape" Property="Background" Value="{DynamicResource Surface}" />
+                        </Trigger>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="Shape" Property="Background" Value="{DynamicResource Surface}" />
+                            <Setter TargetName="Shape" Property="Effect" Value="{StaticResource CardShadow}" />
+                            <Setter Property="FontWeight" Value="SemiBold" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Opacity" Value="0.45" />
+                            <Setter Property="Cursor" Value="Arrow" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
     </Style>
 
     <!--

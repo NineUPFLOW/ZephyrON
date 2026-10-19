@@ -839,11 +839,12 @@ public partial class StatusView : UserControl
     /// из них верить.
     /// </remarks>
     /// <summary>
-    /// Красит точку состояния, её свечение и точку в строке внизу — одним цветом.
+    /// Красит точку состояния и точку в строке внизу — одним цветом.
     /// </summary>
     /// <remarks>
-    /// Серая «стоит» — без свечения: светящаяся серая точка выглядит
-    /// включённой лампочкой, а обход в это время не идёт.
+    /// Свечение у точки убрано вместе с переходом на Breeze Light: на светлой
+    /// подложке размытое пятно читалось как грязь, а состояние и без него
+    /// названо словом в строке рядом.
     /// </remarks>
     private void ShowDot(string colourKey)
     {
@@ -851,7 +852,6 @@ public partial class StatusView : UserControl
 
         Dot.Fill = brush;
         FooterDot.Fill = brush;
-        DotGlow.Color = colourKey != "Faint" && brush is SolidColorBrush solid ? solid.Color : Colors.Transparent;
     }
 
     /// <summary>

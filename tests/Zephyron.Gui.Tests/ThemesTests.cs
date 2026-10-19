@@ -8,7 +8,7 @@ using Xunit;
 namespace Zephyron.Gui.Tests;
 
 /// <summary>
-/// Тема из файла собирается в словарь с теми же ключами, что Palette.xaml.
+/// Тема из файла собирается в словарь с теми же ключами, что Breeze.xaml.
 /// </summary>
 /// <remarks>
 /// Стили берут кисти и шрифты по ключам. Ключ, которого нет в собранном
@@ -44,7 +44,7 @@ public sealed class ThemesTests
         {
             var palette = new ResourceDictionary
             {
-                Source = new Uri("pack://application:,,,/Zephyron;component/Theme/Palette.xaml", UriKind.Absolute),
+                Source = new Uri("pack://application:,,,/Zephyron;component/Theme/Breeze.xaml", UriKind.Absolute),
             };
 
             foreach (var id in ThemeLoader.BuiltIn)

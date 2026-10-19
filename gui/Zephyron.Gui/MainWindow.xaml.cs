@@ -30,6 +30,8 @@ public partial class MainWindow : Window
 
         VersionLabel.Text = "версия " + Version();
         Motion.Mark(Mark);
+        SizeChanged += (_, _) => FitRail();
+        Loaded += (_, _) => FitRail();
         ShowOnboardingIfNeeded();
         Loaded += (_, _) => ShowGreetingIfDue();
 
@@ -116,6 +118,60 @@ public partial class MainWindow : Window
     /// <summary>Точка у «Главной», пока новая версия не поставлена: обновление живёт там.</summary>
     private void ShowUpdateBadge() =>
         RailBadge.SetShown(RailStatus, UpdateNotice.Available is not null);
+
+    /// <summary>
+    /// Ужимает боковое меню на узком окне: подписи уходят, остаются значки.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Разделов четырнадцать, и самое длинное название — «Проверка блокировок».
+    /// Полное меню занимает 252 точки; на окне уже примерно 900 точки поле
+    /// раздела становится уже рабочего, и карточки в нём начинают переноситься
+    /// на каждой строке. Тогда меню переходит в узкий режим: подпись пункта
+    /// прячется (RailCompact), название остаётся во всплывающей подсказке.
+    /// </para>
+    /// <para>
+    /// Скрываем подписи, а не сами пункты: спрятать раздел значило бы лишить
+    /// человека доступа к нему, а на узком окне это ровно то, что меньше всего
+    /// нужно. Ширину колонки и знак с именем тоже ужимаем — иначе узкое меню
+    /// осталось бы широким.
+    /// </para>
+    /// </remarks>
+    private void FitRail()
+    {
+        // ActualWidth — уже с учётом LayoutTransform (масштаб окна), поэтому
+        // порог сравнивается с тем, что человек видит, а не с точками окна.
+        var compact = ActualWidth < 900;
+
+        if (_railCompact == compact)
+            return;
+
+        _railCompact = compact;
+
+        RailColumn.Width = new GridLength(Token(compact ? "RailNarrow" : "RailWidth"));
+
+        foreach (var item in Rail.Children.OfType<RadioButton>())
+            RailCompact.SetIs(item, compact);
+
+        MarkText.Visibility = compact ? Visibility.Collapsed : Visibility.Visible;
+        RailGroupBreak.Visibility = compact ? Visibility.Collapsed : Visibility.Visible;
+        RailDivider.Margin = compact ? new Thickness(14, 10, 14, 8) : new Thickness(20, 12, 20, 10);
+    }
+
+    /// <summary>Меню сейчас в узком режиме — чтобы не пересобирать его зря.</summary>
+    private bool _railCompact;
+
+    /// <summary>
+    /// Токен оформления по имени; если словаря нет — разумное значение.
+    /// </summary>
+    /// <remarks>
+    /// Не статическим полем и не бросая исключения: MainWindow создаётся
+    /// и в тестах, где словари подняты не полностью, и падение на отсутствии
+    /// токена было бы отказом окна из-за оформления.
+    /// </remarks>
+    private static double Token(string name) =>
+        Application.Current?.TryFindResource(name) as double?
+        ?? (name == "RailNarrow" ? 76 : 252);
 
     /// <summary>Окно обновления уже предлагалось в этом запуске.</summary>
     private bool _updateOffered;

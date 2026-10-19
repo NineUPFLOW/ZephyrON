@@ -22,7 +22,7 @@
             <ColumnDefinition Width="Auto" />
         </Grid.ColumnDefinitions>
 
-        <TextBlock x:Name="Heading" Grid.ColumnSpan="2" Style="{StaticResource Title}" FontSize="18"
+        <TextBlock x:Name="Heading" Grid.ColumnSpan="2" Style="{StaticResource DialogTitle}"
                    Margin="0,0,0,16" Text="Выбор цвета" />
 
         <StackPanel Grid.Row="1" Grid.Column="0">

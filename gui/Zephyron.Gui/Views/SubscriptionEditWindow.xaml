@@ -13,7 +13,7 @@
         заменить. Пустое поле — оставить как есть.
     -->
     <StackPanel LayoutTransform="{DynamicResource UiScaleTransform}" Margin="28,24,28,24">
-        <TextBlock Text="Подписка" Style="{StaticResource Title}" FontSize="20" />
+        <TextBlock Text="Подписка" Style="{StaticResource DialogTitle}" />
 
         <TextBlock Text="Имя" FontWeight="SemiBold" Margin="0,18,0,6" />
         <TextBox x:Name="NameBox" gui:Hint.Text="Имя для себя" />

@@ -69,7 +69,7 @@ public sealed class ThemeLoaderTests : IDisposable
         if (Repository() is not { } repo)
             return;
 
-        foreach (var (id, xaml) in new[] { ("dark", "Palette.xaml"), ("light", "Light.xaml") })
+        foreach (var (id, xaml) in new[] { ("breeze", "Breeze.xaml"), ("dark", "Palette.xaml"), ("light", "Light.xaml") })
         {
             var text = File.ReadAllText(Path.Combine(repo, "gui", "Zephyron.Gui", "Theme", xaml));
             var theme = ThemeLoader.Load(id, _root).Theme!;
@@ -92,7 +92,7 @@ public sealed class ThemeLoaderTests : IDisposable
 
         var all = ThemeLoader.LoadAll(_root);
 
-        Assert.Equal(["dark", "light", "grey", "tinted", "violet", "ocean", "coffee", "rose", "cream", "aurora", "HotGr", "NyaView", "Peach Static", "zzz"], all.Select(t => t.Id));
+        Assert.Equal(["breeze", "dark", "light", "grey", "tinted", "violet", "ocean", "coffee", "rose", "cream", "aurora", "HotGr", "NyaView", "Peach Static", "zzz"], all.Select(t => t.Id));
     }
 
     /// <summary>Основа даёт недостающее: три своих цвета, остальное — от тёмной.</summary>

@@ -27,6 +27,7 @@
          а голое число для него неподходящего вида — «"12" не является
          допустимым значением для свойства "CornerRadius"», — и это роняло
          разбор шаблона, как раньше дробная толщина (см. Stroke). -->
+    <CornerRadius x:Key="RXs">6</CornerRadius>
     <CornerRadius x:Key="RSm">8</CornerRadius>
     <CornerRadius x:Key="RMd">12</CornerRadius>
     <CornerRadius x:Key="RLg">16</CornerRadius>
@@ -43,8 +44,13 @@
     <sys:Double x:Key="S6">32</sys:Double>
 
     <!-- Размеры оболочки окна. -->
-    <sys:Double x:Key="RailWidth">244</sys:Double>
+    <sys:Double x:Key="RailWidth">252</sys:Double>
+    <sys:Double x:Key="RailNarrow">76</sys:Double>
     <sys:Double x:Key="MarkSize">40</sys:Double>
+
+    <!-- Предел ширины рабочей области: строка во всю ширину широкого
+         монитора читается хуже колонки, а формы расплываются. -->
+    <sys:Double x:Key="PageMax">1160</sys:Double>
 
     <!-- Поля страницы раздела: шире горизонталь, чем вертикаль, — так
          карточки стоят по центру взгляда, а не упираются в края. -->

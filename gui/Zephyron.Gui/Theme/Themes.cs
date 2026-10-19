@@ -20,9 +20,10 @@ public sealed record ThemeApplied(string Id, bool Ok, IReadOnlyList<string> Prob
 /// ключами, только собранный в коде, а не прочитанный из XAML.
 /// </para>
 /// <para>
-/// Palette.xaml и Light.xaml остаются запасом: если папки тем нет или
-/// тема не прошла проверку, применяется встроенный XAML того же имени.
-/// Их значения совпадают с themes\dark и themes\light — это сторожит тест.
+/// Breeze.xaml, Palette.xaml и Light.xaml остаются запасом: если папки тем
+/// нет или тема не прошла проверку, применяется встроенный XAML того же
+/// имени. Их значения совпадают с themes/breeze, themes/dark и themes/light —
+/// это сторожит тест.
 /// </para>
 /// </remarks>
 public static class Themes
@@ -30,10 +31,19 @@ public static class Themes
     // Полным адресом ресурса, а не относительным путём: относительный
     // находится только из самой программы, а из тестов и чужих сборок —
     // нет (найдено 24.09 тестом окон редактора).
+    private const string BreezePath = "pack://application:,,,/Zephyron;component/Theme/Breeze.xaml";
     private const string DarkPath = "pack://application:,,,/Zephyron;component/Theme/Palette.xaml";
     private const string LightPath = "pack://application:,,,/Zephyron;component/Theme/Light.xaml";
 
-    public const string DefaultId = "dark";
+    /// <summary>
+    /// Тема по умолчанию — Breeze Light, основная тема новой дизайн-системы.
+    /// </summary>
+    /// <remarks>
+    /// Прежде умолчанием была тёмная. Breeze Light — светлый, спокойный
+    /// интерфейс, под который переработана вся компоновка; человеку
+    /// без сохранённой темы показываем именно её.
+    /// </remarks>
+    public const string DefaultId = "breeze";
 
     /// <summary>Применённая сейчас тема.</summary>
     public static string Current { get; private set; } = DefaultId;
@@ -45,7 +55,7 @@ public static class Themes
     /// Применяет тему по имени папки; при отказе — встроенную из XAML.
     /// </summary>
     /// <summary>
-    /// Встроенная тёмная палитра без картинок и видео — для окна подмены.
+    /// Встроенная палитра без картинок и видео — для окна подмены.
     /// </summary>
     /// <remarks>
     /// Тема человека держит свой фон: картинку — пока читается, видео
@@ -54,7 +64,7 @@ public static class Themes
     /// </remarks>
     public static void ApplyBuiltIn()
     {
-        var builtIn = new ResourceDictionary { Source = new Uri(DarkPath, UriKind.Absolute) };
+        var builtIn = new ResourceDictionary { Source = new Uri(BreezePath, UriKind.Absolute) };
         builtIn["UiScaleTransform"] = Scale(1);
 
         Swap(builtIn);
@@ -109,10 +119,9 @@ public static class Themes
             problems.Add("темы нет в папке themes");
 
         // Тема не применилась — остаётся встроенная, ближайшая по смыслу:
-        // светлая, если просили её или подложка темы светлая, иначе тёмная.
-        var fallback = wanted == "light" || load.Theme?.Colors[ThemeSlots.Backdrop].Luminance > 0.5
-            ? LightPath
-            : DarkPath;
+        // своя встроенная по имени, иначе светлая, если просили её или
+        // подложка темы светлая, иначе тёмная.
+        var (fallback, fallbackId) = BuiltInFor(wanted, load.Theme);
 
         var builtIn = new ResourceDictionary { Source = new Uri(fallback, UriKind.Absolute) };
 
@@ -122,10 +131,36 @@ public static class Themes
         Swap(builtIn);
         Glass.Set(null, System.Windows.Media.Stretch.UniformToFill);
         BackdropVideo.Take(builtIn);
-        Current = fallback == LightPath ? "light" : DefaultId;
+        Current = fallbackId;
         WideHome = false;
 
         return new ThemeApplied(wanted, false, problems);
+    }
+
+    /// <summary>
+    /// Встроенный словарь и его имя — запас, когда тему из папки взять нельзя.
+    /// </summary>
+    /// <remarks>
+    /// У каждой встроенной темы есть парный XAML: breeze — Breeze.xaml,
+    /// light — Light.xaml, dark — Palette.xaml. Прежде запас знал только две
+    /// темы, и отсутствие папки themes у человека с Breeze показало бы тёмное
+    /// окно — не тот интерфейс, что он выбрал. Светлоту подложки спрашиваем
+    /// у чужой темы, у которой своей пары нет: светлая — значит светлый запас.
+    /// </remarks>
+    private static (string Path, string Id) BuiltInFor(string wanted, Theme? theme)
+    {
+        if (wanted == DefaultId)
+            return (BreezePath, DefaultId);
+
+        if (wanted == "light")
+            return (LightPath, "light");
+
+        if (wanted == "dark")
+            return (DarkPath, "dark");
+
+        return theme is not null && theme[ThemeSlots.Backdrop].Luminance > 0.5
+            ? (LightPath, "light")
+            : (DarkPath, "dark");
     }
 
     /// <summary>

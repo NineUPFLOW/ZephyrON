@@ -4,24 +4,28 @@
         xmlns:views="clr-namespace:Zephyron.Gui.Views"
         xmlns:local="clr-namespace:Zephyron.Gui"
         Title="Zephyron"
-        Height="720" Width="1080"
-        MinHeight="560" MinWidth="880"
+        Height="760" Width="1200"
+        MinHeight="560" MinWidth="600"
         Background="{DynamicResource Backdrop}"
         WindowStartupLocation="CenterScreen"
         UseLayoutRounding="True"
         TextOptions.TextFormattingMode="Ideal">
 
     <!--
-        Оболочка: плавающая колонка меню и просторное поле раздела. Так
-        программа выглядит иначе, чем плоская полоса вкладок: меню —
-        отдельная карточка со своим знаком, поле — с воздухом по краям.
+        Оболочка Breeze Light: спокойное поле раздела и боковое меню, которое
+        умеет ужиматься. Прежде меню было плавающей карточкой, а раздел —
+        колонкой с потолком ширины; теперь меню упирается в левый край окна,
+        а поле раздела дышит по центру — так карточки стоят на одной оси
+        на любой ширине, а не жмутся к меню.
+
         Имена элементов и обработчики те же, что были: менялась форма,
         а не поведение.
     -->
     <Grid x:Name="Root" LayoutTransform="{DynamicResource UiScaleTransform}">
         <Grid.ColumnDefinitions>
-            <!-- Меню фиксированной ширины (токен RailWidth), поле — остаток. -->
-            <ColumnDefinition Width="Auto" />
+            <!-- Меню: ширина задаётся кодом по ширине окна (RailWidth или
+                 RailNarrow), поле раздела — остаток. -->
+            <ColumnDefinition x:Name="RailColumn" Width="Auto" />
             <ColumnDefinition Width="*" />
         </Grid.ColumnDefinitions>
 
@@ -44,20 +48,21 @@
         <Rectangle Grid.ColumnSpan="2" IsHitTestVisible="False" Fill="{DynamicResource Accent}">
             <Rectangle.OpacityMask>
                 <RadialGradientBrush Center="1,0" GradientOrigin="1,0" RadiusX="0.85" RadiusY="1.1">
-                    <GradientStop Color="#1C000000" Offset="0" />
+                    <GradientStop Color="#12000000" Offset="0" />
                     <GradientStop Color="#00000000" Offset="1" />
                 </RadialGradientBrush>
             </Rectangle.OpacityMask>
         </Rectangle>
 
         <!--
-            Боковое меню — отдельная карточка с полями от краёв окна.
+            Боковое меню — полоса от левого края до левого края окна, с
+            собственной подложкой. Раньше это была плавающая карточка; полоса
+            устойчивее на узком окне и не тратит точки на внешние поля.
             Полоса, а не вкладки: разделы равноправны, и проверку блокировок
             нельзя прятать глубже остальных, она и отличает нас от любого
             клиента VPN.
         -->
-        <Border Grid.Column="0" Style="{StaticResource RailPanel}"
-                Width="{StaticResource RailWidth}" Margin="{StaticResource RailInset}">
+        <Border Grid.Column="0" x:Name="RailPanel" Style="{StaticResource RailPanel}">
             <DockPanel LastChildFill="True">
 
                 <!--
@@ -69,11 +74,11 @@
                     использовать лого программы».
                 -->
                 <StackPanel DockPanel.Dock="Top" Margin="{StaticResource RailPad}">
-                    <StackPanel Orientation="Horizontal">
+                    <StackPanel Orientation="Horizontal" x:Name="MarkRow">
                         <Image x:Name="Mark" Width="{StaticResource MarkSize}" Height="{StaticResource MarkSize}"
                                Source="pack://application:,,,/Zephyron;component/Assets/logo.png"
                                RenderOptions.BitmapScalingMode="HighQuality" />
-                        <StackPanel Margin="12,0,0,0" VerticalAlignment="Center">
+                        <StackPanel x:Name="MarkText" Margin="12,0,0,0" VerticalAlignment="Center">
                             <TextBlock Text="Zephyron" Style="{StaticResource Title}" FontSize="19" />
                             <TextBlock x:Name="VersionLabel" Style="{StaticResource Caption}" Margin="0,3,0,0" />
                         </StackPanel>
@@ -81,17 +86,17 @@
                 </StackPanel>
 
                 <!--
-                    Полоса прокручивается: разделов одиннадцать, и на невысоком
+                    Полоса прокручивается: разделов четырнадцать, и на невысоком
                     окне последний иначе уезжает за нижний край — а уехавшего
                     пункта не существует, его не найти.
                 -->
                 <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,4,0,0">
                     <!--
-                        Две группы. Пунктов одиннадцать, и подряд они читались
-                        стеной. Каждый день открывают первые четыре; остальное —
-                        инструменты разбора, к которым идут, когда что-то не так.
-                        «Ещё» отдельно: это настройки программы, а не часть
-                        работы с сетью.
+                        Три группы. Пунктов четырнадцать, и подряд они читались
+                        стеной. Каждый день открывают первые пять; дальше —
+                        инструменты разбора, к которым идут, когда что-то
+                        не так. «Оформление» и «Ещё» отдельно: это настройки
+                        программы, а не часть работы с сетью.
                     -->
                     <StackPanel x:Name="Rail">
                         <RadioButton x:Name="RailStatus" Style="{StaticResource RailItem}" Content="Главная" Tag="status" local:MenuIcon.Glyph="&#xE80F;" IsChecked="True" Checked="OnSection" />
@@ -104,7 +109,7 @@
                             Заголовок группы, а не пункт: прописными, мельче
                             и с чертой до края.
                         -->
-                        <Grid Margin="20,20,20,8">
+                        <Grid x:Name="RailGroupBreak" Margin="20,20,20,8">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto" />
                                 <ColumnDefinition Width="*" />
@@ -121,7 +126,7 @@
                         <!-- «Журнал» — с 07.10 окном из «Диагностики» (LogWindow): место в меню отдано «TG Proxy». -->
                         <RadioButton Style="{StaticResource RailItem}" Content="Диагностика" Tag="doctor" local:MenuIcon.Glyph="&#xE9D9;" Checked="OnSection" />
 
-                        <Border Height="1" Background="{DynamicResource Border}" Margin="20,12,20,10" />
+                        <Border x:Name="RailDivider" Height="1" Background="{DynamicResource Border}" Margin="20,12,20,10" />
                         <RadioButton Style="{StaticResource RailItem}" Content="Оформление" Tag="look" local:MenuIcon.Glyph="&#xE790;" Checked="OnSection" />
                         <RadioButton x:Name="RailMore" Style="{StaticResource RailItem}" Content="Ещё" Tag="more" local:MenuIcon.Glyph="&#xE713;" Checked="OnSection" />
                     </StackPanel>

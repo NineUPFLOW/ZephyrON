@@ -30,21 +30,23 @@ public static class ThemeLoader
     public const string FileName = "theme.json";
 
     /// <summary>Встроенные темы — они же основы для чужих.</summary>
-    public static IReadOnlyList<string> BuiltIn { get; } = ["dark", "light"];
+    public static IReadOnlyList<string> BuiltIn { get; } = ["breeze", "dark", "light"];
 
     /// <summary>
     /// Темы, которые едут с программой, — в этом порядке в списке выбора.
     /// </summary>
     /// <remarks>
-    /// Серая и тёмно-синяя добавлены 24.09 по просьбе владельца, пять цветных —
-    /// 30.09 («пару расцветок на любой вкус»). Основами
-    /// они не служат: основа — только тёмная и светлая, чтобы чужая тема
-    /// не зависела от темы, которую мы однажды поправим. С картинкой едут
-    /// пять: «Аврора» с фирменным фоном (12.10), NyaView (живой фон
-    /// владельца), HotGr и Peach Static — арт владельца (12.10).
-    /// «Слойка 1» и Blissfield убраны 12.10 по его же слову.
+    /// Breeze Light идёт первой: она — основная тема новой дизайн-системы
+    /// и та, что стоит по умолчанию у человека без настроек. Серая и
+    /// тёмно-синяя добавлены 24.09 по просьбе владельца, пять цветных —
+    /// 30.09 («пару расцветок на любой вкус»). Основами служат светлая,
+    /// тёмная и кремовая, — чтобы чужая тема не зависела от темы, которую
+    /// мы однажды поправим. С картинкой едут пять: «Аврора» с фирменным
+    /// фоном (12.10), NyaView (живой фон владельца), HotGr и Peach Static —
+    /// арт владельца (12.10). «Слойка 1» и Blissfield убраны 12.10
+    /// по его же слову.
     /// </remarks>
-    public static IReadOnlyList<string> Shipped { get; } = ["dark", "light", "grey", "tinted", "violet", "ocean", "coffee", "rose", "cream", "aurora", "HotGr", "NyaView", "Peach Static"];
+    public static IReadOnlyList<string> Shipped { get; } = ["breeze", "dark", "light", "grey", "tinted", "violet", "ocean", "coffee", "rose", "cream", "aurora", "HotGr", "NyaView", "Peach Static"];
 
     public const long MaxImageBytes = 20 * 1024 * 1024;
     public const long MaxFontBytes = 8 * 1024 * 1024;
@@ -150,7 +152,7 @@ public static class ThemeLoader
             if (basis is not null)
                 colors[slot] = basis[slot];
             else
-                problems.Add($"нет цвета «{slot}» — задайте его или укажите \"base\": \"dark\"");
+                problems.Add($"нет цвета «{slot}» — задайте его или укажите \"base\": \"{BuiltIn[0]}\"");
         }
 
         // Текст полупрозрачным быть не может: сквозь него видно то, на чём

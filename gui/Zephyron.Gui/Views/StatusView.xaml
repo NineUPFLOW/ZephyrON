@@ -62,7 +62,10 @@
     -->
     <Grid>
         <Grid.ColumnDefinitions>
-            <ColumnDefinition x:Name="ContentColumn" Width="100*" MinWidth="560" MaxWidth="940" />
+            <!-- Веса 100 к 1: на узком окне колонке арта не достаётся ничего,
+                 и он уходит сам. Потолок PageMax — чтобы строка не растянулась
+                 во всю ширину широкого монитора, где читается хуже колонки. -->
+            <ColumnDefinition x:Name="ContentColumn" Width="100*" MaxWidth="{StaticResource PageMax}" />
             <ColumnDefinition x:Name="ArtColumn" Width="*" />
         </Grid.ColumnDefinitions>
 
@@ -242,10 +245,11 @@
                 <!--
                     Карточка состояния. Крупная точка и одна строка словами:
                     первое, зачем окно открывают, — понять, идёт ли обход.
-                    Точка со свечением её же цвета (макет 30.09): свечение
-                    красится вместе с точкой, в ShowDot, и разойтись им нечем.
+                    Точка без свечения (Breeze Light): размытое пятно вокруг
+                    неё на светлой подложке читается как грязь, а состояние
+                    и без него названо словом рядом.
                 -->
-                <Border Grid.Row="4" Style="{StaticResource Card}" Margin="0,18,0,0" Padding="22,16,22,14">
+                <Border Grid.Row="4" Style="{StaticResource CardRaised}" Margin="0,18,0,0" Padding="22,16,22,14">
                     <StackPanel>
                         <Grid>
                             <Grid.ColumnDefinitions>
@@ -254,14 +258,9 @@
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
 
-                            <Ellipse x:Name="Dot" Grid.Column="0" Width="26" Height="26"
+                            <Ellipse x:Name="Dot" Grid.Column="0" Width="22" Height="22"
                                      VerticalAlignment="Center" Margin="4,0,20,0"
-                                     Fill="{DynamicResource Faint}">
-                                <Ellipse.Effect>
-                                    <DropShadowEffect x:Name="DotGlow" ShadowDepth="0" BlurRadius="22"
-                                                      Opacity="0.7" Color="Transparent" />
-                                </Ellipse.Effect>
-                            </Ellipse>
+                                     Fill="{DynamicResource Faint}" />
 
                             <StackPanel Grid.Column="1" VerticalAlignment="Center">
                                 <TextBlock x:Name="StateLine" FontSize="21" FontWeight="SemiBold" Text="Проверяю…"
@@ -616,47 +615,44 @@
                 <!--
                     Быстрые действия (макет 30.09): переходы в разделы разбора
                     и папка настроек — то, за чем идут, когда что-то не так.
-                    По той же сетке, что ряды выше: две половины с зазором 14,
-                    каждая — пополам. Равные четверти от UniformGrid середину
-                    сдвигали, и край кнопки не сходился с краем карточки (04.10).
-                -->
-                <Grid Grid.Row="15" Margin="0,10,0,0">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="8" />
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="14" />
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="8" />
-                        <ColumnDefinition Width="*" />
-                    </Grid.ColumnDefinitions>
 
-                    <Button Grid.Column="0" Style="{StaticResource Ghost}" Padding="10,8" Click="OnQuickCheck">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Style="{StaticResource LineGlyph}" Text="&#xE721;" Margin="0,0,8,0" />
-                            <TextBlock Text="Проверить блокировки" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                    Плитками в WrapPanel, а не четырьмя кнопками в строку:
+                    прежде это был ряд из четырёх подписей, и на узком окне
+                    каждая подпись упиралась в свою треть. Плитка же значок
+                    сверху, слово под ним — переносится по ширине и остаётся
+                    нажимаемой в любой колонке.
+                -->
+                <WrapPanel Grid.Row="15" Margin="0,10,0,0">
+                    <Button Style="{StaticResource QuickTile}" Click="OnQuickCheck" Margin="0,0,8,8" MinWidth="152">
+                        <StackPanel>
+                            <TextBlock Style="{StaticResource LineGlyph}" Text="&#xE721;" FontSize="18"
+                                       HorizontalAlignment="Center" Margin="0,0,0,6" />
+                            <TextBlock Text="Проверка блокировок" TextAlignment="Center" TextWrapping="Wrap" />
                         </StackPanel>
                     </Button>
-                    <Button Grid.Column="2" Style="{StaticResource Ghost}" Padding="10,8" Click="OnQuickLog">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Style="{StaticResource LineGlyph}" Text="&#xE8FD;" Margin="0,0,8,0" />
-                            <TextBlock Text="Открыть журнал" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                    <Button Style="{StaticResource QuickTile}" Click="OnQuickLog" Margin="0,0,8,8" MinWidth="152">
+                        <StackPanel>
+                            <TextBlock Style="{StaticResource LineGlyph}" Text="&#xE8FD;" FontSize="18"
+                                       HorizontalAlignment="Center" Margin="0,0,0,6" />
+                            <TextBlock Text="Открыть журнал" TextAlignment="Center" TextWrapping="Wrap" />
                         </StackPanel>
                     </Button>
-                    <Button Grid.Column="4" Style="{StaticResource Ghost}" Padding="10,8" Click="OnQuickDoctor">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Style="{StaticResource LineGlyph}" Text="&#xE756;" Margin="0,0,8,0" />
-                            <TextBlock Text="Диагностика" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                    <Button Style="{StaticResource QuickTile}" Click="OnQuickDoctor" Margin="0,0,8,8" MinWidth="152">
+                        <StackPanel>
+                            <TextBlock Style="{StaticResource LineGlyph}" Text="&#xE756;" FontSize="18"
+                                       HorizontalAlignment="Center" Margin="0,0,0,6" />
+                            <TextBlock Text="Диагностика" TextAlignment="Center" TextWrapping="Wrap" />
                         </StackPanel>
                     </Button>
-                    <Button Grid.Column="6" Style="{StaticResource Ghost}" Padding="10,8" Click="OnQuickConfig"
+                    <Button Style="{StaticResource QuickTile}" Click="OnQuickConfig" Margin="0,0,8,8" MinWidth="152"
                             ToolTip="Папка config в проводнике, файл настроек выделен">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Style="{StaticResource LineGlyph}" Text="&#xE8B7;" Margin="0,0,8,0" />
-                            <TextBlock Text="Открыть конфиг" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                        <StackPanel>
+                            <TextBlock Style="{StaticResource LineGlyph}" Text="&#xE8B7;" FontSize="18"
+                                       HorizontalAlignment="Center" Margin="0,0,0,6" />
+                            <TextBlock Text="Открыть конфиг" TextAlignment="Center" TextWrapping="Wrap" />
                         </StackPanel>
                     </Button>
-                </Grid>
+                </WrapPanel>
 
                 <!--
                     Строка внизу: сколько работает обход и когда собран конфиг
