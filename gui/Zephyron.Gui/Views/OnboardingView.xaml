@@ -15,7 +15,7 @@
                     <ControlTemplate TargetType="RadioButton">
                         <Border x:Name="Shape" Background="{DynamicResource Surface}"
                                 BorderBrush="{DynamicResource Border}" BorderThickness="1.5"
-                                CornerRadius="12" Padding="16,13">
+                                CornerRadius="{StaticResource RMd}" Padding="16,13">
                             <ContentPresenter />
                         </Border>
                         <ControlTemplate.Triggers>
@@ -144,7 +144,7 @@
                                     </Button.Template>
 
                                     <StackPanel Width="112">
-                                        <Border Height="84" CornerRadius="12" BorderThickness="2"
+                                        <Border Height="84" CornerRadius="{StaticResource RMd}" BorderThickness="2"
                                                 Background="{Binding Backdrop}" BorderBrush="{Binding Edge}">
                                             <Grid>
                                                 <Rectangle RadiusX="10" RadiusY="10" Fill="{Binding Image}" />

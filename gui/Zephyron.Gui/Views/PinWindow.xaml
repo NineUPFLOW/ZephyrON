@@ -19,7 +19,7 @@
         </Grid.RowDefinitions>
 
         <StackPanel Grid.Row="0">
-            <TextBlock x:Name="ServiceName" Style="{StaticResource Title}" TextWrapping="Wrap" />
+            <TextBlock x:Name="ServiceName" Style="{StaticResource DialogTitle}" TextWrapping="Wrap" />
             <TextBlock x:Name="ServiceState" Style="{StaticResource Caption}"
                        Margin="0,6,0,0" TextWrapping="Wrap" />
         </StackPanel>

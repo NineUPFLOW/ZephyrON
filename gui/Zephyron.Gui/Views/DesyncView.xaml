@@ -46,7 +46,7 @@
                             ToolTip="Версия Zapret GUI, для которой собран пресет"
                             Visibility="{Binding VersionShown}">
                         <TextBlock Text="{Binding Version}" Style="{StaticResource Mono}"
-                                   Foreground="{DynamicResource Muted}" FontSize="11.5" />
+                                   Foreground="{DynamicResource Muted}" FontSize="12" />
                     </Border>
 
                     <!--
@@ -199,7 +199,7 @@
                             на «Главной»), иначе — значок десинка: у встроенных
                             тем картинки нет, и SideArt там прозрачен.
                         -->
-                        <Border Grid.Column="0" Width="92" Height="92" CornerRadius="14"
+                        <Border Grid.Column="0" Width="92" Height="92" CornerRadius="{StaticResource RLg}"
                                 Background="{DynamicResource Raised}" BorderBrush="{DynamicResource Border}"
                                 BorderThickness="1" Margin="0,0,20,0" VerticalAlignment="Center">
                             <Grid>
@@ -466,7 +466,7 @@
         -->
         <Border x:Name="DropHint" Visibility="Collapsed" Opacity="0.94"
                 Background="{DynamicResource Backdrop}" BorderBrush="{DynamicResource Accent}"
-                BorderThickness="2" CornerRadius="14" Margin="20">
+                BorderThickness="2" CornerRadius="{StaticResource RLg}" Margin="20">
             <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
                 <TextBlock Text="Отпустите — скопирую в папку пресетов"
                            FontSize="18" FontWeight="SemiBold" HorizontalAlignment="Center" />

@@ -505,14 +505,16 @@ public sealed record AppSettings
     public IReadOnlyList<string> AutoPickExcluded { get; init; } = Array.Empty<string>();
 
     /// <summary>
-    /// Тема окна — имя папки в <c>themes\</c>: <c>dark</c>, <c>light</c> или чужая.
+    /// Тема окна — имя папки в <c>themes\</c>: <c>breeze</c>, <c>dark</c>,
+    /// <c>light</c> или чужая.
     /// </summary>
     /// <remarks>
     /// Строкой, а не логическим полем: тем может стать больше двух, и тогда
     /// <c>LightTheme: false</c> пришлось бы читать как «какая-то из
     /// остальных». Так и вышло 23.09 с темами художников — прежние значения
     /// <c>dark</c> и <c>light</c> остались именами встроенных папок.
-    /// Неизвестная или непрошедшая проверку тема — тёмная.
+    /// Пустое значение — основная тема Breeze Light; неизвестная или
+    /// непрошедшая проверку — встроенная, ближайшая по светлоте подложки.
     /// </remarks>
     public string? Theme { get; init; }
 

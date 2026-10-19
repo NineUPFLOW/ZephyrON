@@ -48,6 +48,43 @@ public static class Themes
     /// <summary>Применённая сейчас тема.</summary>
     public static string Current { get; private set; } = DefaultId;
 
+    /// <summary>
+    /// Тема сменилась — тёмная она или светлая. Слушают те, кому мало
+    /// подмены словаря: заголовок окна Windows задаётся отдельно от XAML.
+    /// </summary>
+    public static event Action? Changed;
+
+    /// <summary>Подложка применённой темы светлее половины — тема светлая.</summary>
+    /// <remarks>
+    /// Решается по цвету подложки, а не по имени: чужая светлая тема
+    /// с именем «Моя» не названа ни breeze, ни light, а заголовок ей нужен
+    /// светлый. До первой подмены словаря ответ — по встроенной теме.
+    /// </remarks>
+    public static bool IsLight
+    {
+        get
+        {
+            var merged = Application.Current?.Resources.MergedDictionaries;
+
+            if (merged is null)
+                return true;
+
+            foreach (var dictionary in merged)
+            {
+                if (dictionary["BackdropColor"] is Color color)
+                    return (0.2126 * Channel(color.R) + 0.7152 * Channel(color.G) + 0.0722 * Channel(color.B)) > 0.5;
+            }
+
+            return true;
+        }
+    }
+
+    private static double Channel(byte value)
+    {
+        double v = value / 255.0;
+        return v <= 0.04045 ? v / 12.92 : Math.Pow((v + 0.055) / 1.055, 2.4);
+    }
+
     /// <summary>Применённая тема просит «Главную» на всю ширину (<see cref="Theme.HomeFullWidth"/>).</summary>
     public static bool WideHome { get; private set; }
 
@@ -591,11 +628,13 @@ public static class Themes
             if (merged[i].Contains("BackdropColor"))
             {
                 merged[i] = dictionary;
+                Changed?.Invoke();
                 return;
             }
         }
 
         merged.Insert(0, dictionary);
+        Changed?.Invoke();
     }
 
     private static Color ToColor(ThemeColor color) => Color.FromArgb(color.A, color.R, color.G, color.B);

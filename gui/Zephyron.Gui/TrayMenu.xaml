@@ -105,10 +105,10 @@
                 <SolidColorBrush Color="{DynamicResource TextColor}" Opacity="0.12" />
             </Border.BorderBrush>
 
-            <StackPanel Margin="14,12,14,8" TextElement.FontSize="12.5">
+            <StackPanel Margin="14,12,14,8" TextElement.FontSize="13">
                 <DockPanel>
                     <TextBlock x:Name="Version" DockPanel.Dock="Right" VerticalAlignment="Bottom"
-                               Foreground="{DynamicResource Faint}" FontSize="10.5" />
+                               Foreground="{DynamicResource Faint}" FontSize="11" />
                     <TextBlock Text="Zephyron" FontFamily="{DynamicResource DisplayFont}"
                                FontSize="14.5" FontWeight="SemiBold" Foreground="{DynamicResource Text}" />
                 </DockPanel>
@@ -130,11 +130,11 @@
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
-                    <TextBlock Text="Туннель" Foreground="{DynamicResource Muted}" FontSize="11.5" />
-                    <TextBlock x:Name="Tunnel" Grid.Column="1" Margin="10,0,0,0" FontSize="11.5"
+                    <TextBlock Text="Туннель" Foreground="{DynamicResource Muted}" FontSize="12" />
+                    <TextBlock x:Name="Tunnel" Grid.Column="1" Margin="10,0,0,0" FontSize="12"
                                Foreground="{DynamicResource Muted}" Text="—" />
-                    <TextBlock Grid.Row="1" Text="Десинк" Foreground="{DynamicResource Muted}" FontSize="11.5" />
-                    <TextBlock x:Name="Desync" Grid.Row="1" Grid.Column="1" Margin="10,0,0,0" FontSize="11.5"
+                    <TextBlock Grid.Row="1" Text="Десинк" Foreground="{DynamicResource Muted}" FontSize="12" />
+                    <TextBlock x:Name="Desync" Grid.Row="1" Grid.Column="1" Margin="10,0,0,0" FontSize="12"
                                Foreground="{DynamicResource Muted}" Text="—" />
                 </Grid>
 
@@ -146,7 +146,7 @@
                     на прежний. Выбор сам перезапускает движки (TrayIcon.ChooseMode):
                     ради этого переключатель в трее и просили — не открывать окно.
                 -->
-                <TextBlock Text="Режим работы ZY" Margin="0,11,0,6" FontSize="11.5"
+                <TextBlock Text="Режим работы ZY" Margin="0,11,0,6" FontSize="12"
                            Foreground="{DynamicResource Muted}" />
 
                 <Grid x:Name="Modes">
@@ -161,7 +161,7 @@
                     <RadioButton x:Name="ModeDesync" Grid.Column="0" Style="{StaticResource ModeSegment}"
                                  GroupName="TrayMode" Tag="Desync" Click="OnMode">
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                            <TextBlock Style="{StaticResource LineGlyph}" FontSize="12.5" Text="&#xE9E9;"
+                            <TextBlock Style="{StaticResource LineGlyph}" FontSize="13" Text="&#xE9E9;"
                                        Foreground="{DynamicResource Accent}" Margin="0,0,5,0" />
                             <TextBlock x:Name="ModeDesyncName" VerticalAlignment="Center" />
                         </StackPanel>
@@ -169,7 +169,7 @@
                     <RadioButton x:Name="ModeTunnel" Grid.Column="2" Style="{StaticResource ModeSegment}"
                                  GroupName="TrayMode" Tag="Tunnel" Click="OnMode">
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                            <TextBlock Style="{StaticResource LineGlyph}" FontSize="12.5" Text="&#xE774;"
+                            <TextBlock Style="{StaticResource LineGlyph}" FontSize="13" Text="&#xE774;"
                                        Foreground="{DynamicResource Accent}" Margin="0,0,5,0" />
                             <TextBlock x:Name="ModeTunnelName" VerticalAlignment="Center" />
                         </StackPanel>
@@ -177,14 +177,14 @@
                     <RadioButton x:Name="ModeRoute" Grid.Column="4" Style="{StaticResource ModeSegment}"
                                  GroupName="TrayMode" Tag="Route" Click="OnMode">
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                            <TextBlock Style="{StaticResource LineGlyph}" FontSize="12.5" Text="&#xE8AB;"
+                            <TextBlock Style="{StaticResource LineGlyph}" FontSize="13" Text="&#xE8AB;"
                                        Foreground="{DynamicResource Accent}" Margin="0,0,5,0" />
                             <TextBlock x:Name="ModeRouteName" VerticalAlignment="Center" />
                         </StackPanel>
                     </RadioButton>
                 </Grid>
 
-                <TextBlock x:Name="ModeNote" FontSize="10.5" Margin="1,6,0,0" TextWrapping="Wrap"
+                <TextBlock x:Name="ModeNote" FontSize="11" Margin="1,6,0,0" TextWrapping="Wrap"
                            Foreground="{DynamicResource Muted}" />
 
                 <Grid Margin="0,10,0,0">

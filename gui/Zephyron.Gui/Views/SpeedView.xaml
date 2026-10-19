@@ -196,7 +196,7 @@
 
                                 <TextBlock Grid.Column="0" FontFamily="{StaticResource IconFont}" Text="&#xE7BA;"
                                            FontSize="14" Foreground="{DynamicResource Warn}" Margin="0,1,9,0" />
-                                <TextBlock Grid.Column="1" x:Name="QuotaText" TextWrapping="Wrap" FontSize="12.5"
+                                <TextBlock Grid.Column="1" x:Name="QuotaText" TextWrapping="Wrap" FontSize="13"
                                            Foreground="{DynamicResource Warn}" />
                             </Grid>
 

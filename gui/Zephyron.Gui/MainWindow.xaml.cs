@@ -41,6 +41,9 @@ public partial class MainWindow : Window
             AllowDropFromExplorer();
         };
 
+        // Тема меняется на ходу — заголовок окна перекрашивается следом.
+        Themes.Changed += () => Dispatcher.InvokeAsync(DarkenTitleBar);
+
         _toastTimer.Tick += (_, _) => HideToast();
 
         UpdateNotice.Changed += () => Dispatcher.InvokeAsync(() =>
@@ -677,13 +680,15 @@ public partial class MainWindow : Window
     private static extern int DwmSetWindowAttribute(nint window, int attribute, ref int value, int size);
 
     /// <summary>
-    /// Просит систему нарисовать заголовок окна тёмным.
+    /// Просит систему нарисовать заголовок окна под стать теме.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// Само окно тёмное, а рамку и заголовок рисует Windows, и по умолчанию
-    /// они светлые. Белая полоса над тёмным содержимым — первое, что видно
-    /// при запуске, и выглядит она поломкой, а не задумкой.
+    /// Рамку и заголовок рисует Windows, и по умолчанию они светлые. На
+    /// тёмной теме белая полоса над тёмным содержимым — первое, что видно
+    /// при запуске, и выглядит она поломкой, а не задумкой. На Breeze Light,
+    /// наоборот, тёмный заголовок над светлым окном выбивается, поэтому
+    /// атрибут ставится по светлоте подложки темы, а не всегда в «тёмный».
     /// </para>
     /// <para>
     /// Отказ не проверяется намеренно: на сборках Windows старше 2020 года
@@ -697,7 +702,7 @@ public partial class MainWindow : Window
         try
         {
             var handle = new WindowInteropHelper(this).Handle;
-            int enabled = 1;
+            int enabled = Themes.IsLight ? 0 : 1;
 
             DwmSetWindowAttribute(handle, UseImmersiveDarkMode, ref enabled, sizeof(int));
         }

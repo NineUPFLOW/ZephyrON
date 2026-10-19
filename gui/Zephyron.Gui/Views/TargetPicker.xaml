@@ -3,9 +3,8 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:gui="clr-namespace:Zephyron.Gui"
         Title="Что проверить"
-        Width="460" Height="560"
+        Width="460" Height="560" MinWidth="420" MinHeight="380"
         WindowStartupLocation="CenterOwner"
-        ResizeMode="NoResize"
         Background="{DynamicResource Backdrop}"
         FontFamily="{DynamicResource UiFont}"
         Foreground="{DynamicResource Text}">
@@ -19,7 +18,7 @@
         </Grid.RowDefinitions>
 
         <StackPanel Grid.Row="0">
-            <TextBlock Text="Точечная проверка" FontSize="17" FontWeight="SemiBold" />
+            <TextBlock Text="Точечная проверка" Style="{StaticResource DialogTitle}" />
             <TextBlock Style="{StaticResource Caption}" Margin="0,6,0,0" TextWrapping="Wrap"
                        Text="Один сервис целиком — по четыре имени с каждой его части. Либо своё имя, если нужно проверить что-то, чего в справочнике нет." />
         </StackPanel>
