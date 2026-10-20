@@ -71,8 +71,7 @@
                     Padding="30,12,30,14" BorderThickness="2" MinWidth="190"
                     Background="{DynamicResource Surface}" BorderBrush="{DynamicResource Accent}">
                 <StackPanel>
-                    <TextBlock x:Name="BadgeVersion" HorizontalAlignment="Center" FontSize="30" FontWeight="SemiBold"
-                               Foreground="{DynamicResource Accent}" />
+                    <TextBlock x:Name="BadgeVersion" Style="{StaticResource BadgeValue}" HorizontalAlignment="Center" />
                     <TextBlock x:Name="BadgeDate" Style="{StaticResource Caption}" HorizontalAlignment="Center" Margin="0,3,0,0" />
                 </StackPanel>
             </Border>

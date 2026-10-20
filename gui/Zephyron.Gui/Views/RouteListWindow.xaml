@@ -52,7 +52,7 @@
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <TextBlock Style="{StaticResource Title}" FontSize="20" Text="Добавить списком" />
+        <TextBlock Style="{StaticResource DialogTitle}" Text="Добавить списком" />
 
         <TextBlock Grid.Row="1" Style="{StaticResource Caption}" Margin="0,8,0,12" TextWrapping="Wrap"
                    Text="Сайты или адреса — по строке, через запятую или пробел; ссылки тоже годятся. Имя означает зону: example.com покрывает и поддомены. Путь — один на весь список, поправить отдельный сайт можно потом в его строке." />

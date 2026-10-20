@@ -22,9 +22,11 @@
         показ окна — «Не удается найти ресурс с именем "Title"».
     -->
     <Style x:Key="Title" TargetType="TextBlock">
+        <!-- Имя продукта в панели бренда. Не заголовок раздела: у тех своя
+             шкала (PageTitle, SectionTitle, CardTitle, DialogTitle). -->
         <Setter Property="FontFamily" Value="{DynamicResource DisplayFont}" />
         <Setter Property="Foreground" Value="{DynamicResource Text}" />
-        <Setter Property="FontSize" Value="22" />
+        <Setter Property="FontSize" Value="18" />
         <Setter Property="FontWeight" Value="SemiBold" />
     </Style>
 
@@ -103,6 +105,28 @@
         <Setter Property="Foreground" Value="{DynamicResource Text}" />
         <Setter Property="FontSize" Value="13" />
         <Setter Property="TextWrapping" Value="Wrap" />
+    </Style>
+
+    <!--
+        Крупное значение, а не заголовок: имя выбранного сервера или пресета,
+        счётчик в кольце наблюдения. Кегль выше шкалы заголовков намеренно —
+        это то, ради чего человек на раздел и смотрит.
+    -->
+    <Style x:Key="DisplayValue" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{DynamicResource UiFont}" />
+        <Setter Property="Foreground" Value="{DynamicResource Text}" />
+        <Setter Property="FontSize" Value="22" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+
+    <!-- Номер версии в знаке обновления: самое крупное число в окне. -->
+    <Style x:Key="BadgeValue" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{DynamicResource DisplayFont}" />
+        <Setter Property="Foreground" Value="{DynamicResource Accent}" />
+        <Setter Property="FontSize" Value="30" />
+        <Setter Property="FontWeight" Value="SemiBold" />
     </Style>
 
     <!--

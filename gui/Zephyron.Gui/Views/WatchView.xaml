@@ -372,7 +372,7 @@
                         <Grid x:Name="RingBox" Grid.Row="1" Width="116" Height="116" VerticalAlignment="Center">
                             <views:WatchRing x:Name="Ring" />
                             <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
-                                <TextBlock x:Name="RingTotal" Text="0" FontSize="22" FontWeight="SemiBold" HorizontalAlignment="Center" />
+                                <TextBlock x:Name="RingTotal" Text="0" Style="{StaticResource DisplayValue}" HorizontalAlignment="Center" />
                                 <TextBlock x:Name="RingCaption" Text="соединений" Style="{StaticResource Caption}" HorizontalAlignment="Center" />
                             </StackPanel>
                         </Grid>

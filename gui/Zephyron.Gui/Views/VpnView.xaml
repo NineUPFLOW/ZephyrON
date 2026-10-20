@@ -425,8 +425,8 @@
                                         Margin="0,0,20,0" VerticalAlignment="Center"
                                         Background="{DynamicResource Raised}">
                                     <Grid>
-                                        <TextBlock x:Name="CurrentCountry" HorizontalAlignment="Center" VerticalAlignment="Center"
-                                                   FontWeight="SemiBold" FontSize="17" Foreground="{DynamicResource Muted}" />
+                                        <TextBlock x:Name="CurrentCountry" Style="{StaticResource SectionTitle}" HorizontalAlignment="Center"
+                                                   VerticalAlignment="Center" Foreground="{DynamicResource Muted}" />
                                         <!-- У WARP флага нет — облачко (владелец, 01.10). -->
                                         <TextBlock x:Name="CurrentCloud" Style="{StaticResource TileGlyph}" Text="&#xE753;"
                                                    FontSize="28" Foreground="#F38020" Visibility="Collapsed" />
@@ -444,8 +444,8 @@
                                             <ColumnDefinition Width="*" />
                                         </Grid.ColumnDefinitions>
 
-                                        <TextBlock Grid.Column="0" x:Name="CurrentName" FontSize="22" FontWeight="SemiBold"
-                                                   MaxWidth="440" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                                        <TextBlock Grid.Column="0" x:Name="CurrentName" Style="{StaticResource DisplayValue}"
+                                                   MaxWidth="440" />
 
                                         <Border Grid.Column="1" x:Name="CurrentSourcePill" CornerRadius="7" Padding="8,2"
                                                 Margin="12,0,0,0" BorderThickness="1" VerticalAlignment="Center"
@@ -733,7 +733,7 @@
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
 
-                    <TextBlock Grid.Column="0" Text="Пулы серверов" FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="0" Text="Пулы серверов" Style="{StaticResource SectionTitle}" VerticalAlignment="Center" />
 
                     <Button Grid.Column="2" Style="{StaticResource Ghost}" Content="Новый пул" Click="OnNewPool" />
                 </Grid>
@@ -751,7 +751,7 @@
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
 
-                    <TextBlock Grid.Column="0" Text="Подписки" FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="0" Text="Подписки" Style="{StaticResource SectionTitle}" VerticalAlignment="Center" />
 
                     <Border Grid.Column="1" CornerRadius="10" Padding="10,3" Margin="12,0,0,0" VerticalAlignment="Center"
                             Background="{DynamicResource Raised}" BorderBrush="{DynamicResource Border}" BorderThickness="1">

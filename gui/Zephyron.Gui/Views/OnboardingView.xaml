@@ -77,7 +77,7 @@
 
                 <!-- Шаг 1: знакомство -->
                 <StackPanel x:Name="Step1">
-                    <TextBlock Text="Что делает Zephyron" FontSize="17" FontWeight="SemiBold" />
+                    <TextBlock Text="Что делает Zephyron" Style="{StaticResource SectionTitle}" />
                     <TextBlock Style="{StaticResource Caption}" Margin="0,8,0,0" TextWrapping="Wrap"
                                Text="Каждому сайту — свой путь. Незаблокированное идёт напрямую и не трогается; где хватает десинка — напрямую, но неузнанным; забаненное по IP — через ваш VPN; закрытое по стране — через посредника по пину." />
 
@@ -121,7 +121,7 @@
 
                 <!-- Шаг 2: оформление -->
                 <StackPanel x:Name="Step2" Visibility="Collapsed">
-                    <TextBlock Text="Как будет выглядеть" FontSize="17" FontWeight="SemiBold" />
+                    <TextBlock Text="Как будет выглядеть" Style="{StaticResource SectionTitle}" />
                     <TextBlock Style="{StaticResource Caption}" Margin="0,8,0,0" TextWrapping="Wrap"
                                Text="Тема применяется сразу — щёлкните и посмотрите. Сменить её, настроить фон и шрифты или собрать свою можно потом в «Оформлении»." />
 
@@ -181,7 +181,7 @@
 
                 <!-- Шаг 3: подписка на VPN -->
                 <StackPanel x:Name="Step3" Visibility="Collapsed">
-                    <TextBlock Text="Есть подписка на VPN?" FontSize="17" FontWeight="SemiBold" />
+                    <TextBlock Text="Есть подписка на VPN?" Style="{StaticResource SectionTitle}" />
                     <TextBlock Style="{StaticResource Caption}" Margin="0,8,0,0" TextWrapping="Wrap"
                                Text="Своя подписка — та же ссылка, что вставляют в Happ или другой клиент. Программа её не выдаёт: десинк работает и без неё, но открывает не всё — то, что ТСПУ банит по IP (например Telegram), лечится только через VPN." />
 
@@ -204,7 +204,7 @@
                     Выбор пишется при «Дальше» (WorkModes.Choose).
                 -->
                 <StackPanel x:Name="StepMode" Visibility="Collapsed">
-                    <TextBlock Text="Режим работы ZY" FontSize="17" FontWeight="SemiBold" />
+                    <TextBlock Text="Режим работы ZY" Style="{StaticResource SectionTitle}" />
                     <TextBlock Style="{StaticResource Caption}" Margin="0,8,0,0" TextWrapping="Wrap"
                                Text="Как программа обходит блокировки. Режим меняется в любой момент — на «Главной» и в меню значка в трее." />
 
@@ -333,7 +333,7 @@
                     запускать — «Проверить» меряет сеть как есть.
                 -->
                 <StackPanel x:Name="Step4" Visibility="Collapsed">
-                    <TextBlock Text="Запуск и проверка" FontSize="17" FontWeight="SemiBold" />
+                    <TextBlock Text="Запуск и проверка" Style="{StaticResource SectionTitle}" />
                     <TextBlock x:Name="Step4Detail" Style="{StaticResource Caption}"
                                Margin="0,8,0,0" TextWrapping="Wrap" />
 

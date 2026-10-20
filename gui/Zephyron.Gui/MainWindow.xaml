@@ -60,7 +60,7 @@
                                Source="pack://application:,,,/Zephyron;component/Assets/logo.png"
                                RenderOptions.BitmapScalingMode="HighQuality" />
                         <StackPanel x:Name="MarkText" Margin="12,0,0,0" VerticalAlignment="Center">
-                            <TextBlock Text="Zephyron" Style="{StaticResource Title}" FontSize="18" />
+                            <TextBlock Text="Zephyron" Style="{StaticResource Title}" />
                             <TextBlock x:Name="BrandVersion" Style="{StaticResource Caption}" Margin="0,3,0,0" />
                         </StackPanel>
                     </StackPanel>
