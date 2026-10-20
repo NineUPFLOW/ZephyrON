@@ -1309,10 +1309,24 @@
         подложка акцента, тонкая его же рамка и цветная подпись. Полоса
         из пяти залитых таблеток читалась бы как кнопки, а не как разделы.
     -->
-    <Style x:Key="NavTab" TargetType="RadioButton">
+    <Style x:Key="NavItem" TargetType="Control">
+        <!--
+            Общее у пункта полосы (NavTab) и «Ещё» (NavMore): они разного
+            типа — RadioButton и Button, — а выглядят как один ряд. Общая
+            часть вынесена сюда, в базовый тип обоих.
+
+            Прежде NavMore был BasedOn NavTab напрямую: базовый стиль обязан
+            иметь тип-предок целевого, а RadioButton не предок Button, —
+            словарь не запечатывался, и окно падало при загрузке
+            («В качестве базового допускается только Style с типом цели,
+            который является базовым типом "Button"», 20.10).
+        -->
         <Setter Property="Cursor" Value="Hand" />
         <Setter Property="Margin" Value="0,0,4,0" />
         <Setter Property="ToolTip" Value="{Binding Content, RelativeSource={RelativeSource Self}}" />
+    </Style>
+
+    <Style x:Key="NavTab" TargetType="RadioButton" BasedOn="{StaticResource NavItem}">
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="RadioButton">
@@ -1372,7 +1386,7 @@
         «Ещё» — кнопка выпадающего списка разделов. Собрана как NavTab, чтобы
         стоять с ним в одну линию, но открывает меню, а не выбирается.
     -->
-    <Style x:Key="NavMore" TargetType="Button" BasedOn="{StaticResource NavTab}">
+    <Style x:Key="NavMore" TargetType="Button" BasedOn="{StaticResource NavItem}">
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="Button">
