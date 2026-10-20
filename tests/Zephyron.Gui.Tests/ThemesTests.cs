@@ -339,4 +339,48 @@ public sealed class ThemesTests
             Assert.Equal(0, lightest, 3);
         });
     }
+
+    /// <summary>
+    /// Применение темы при запуске не роняет окно и ставит поля страницы.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Поля страниц — токены <c>Tokens.xaml</c>, а не палитры темы. Прежде
+    /// их читали из палитры, где такого ключа нет: обращение давало
+    /// <c>null</c>, приведение к <c>Thickness</c> роняло запуск
+    /// (<c>NullReferenceException</c> в <c>Themes.Padding</c> при
+    /// <c>Themes.Apply</c>, 20.10). Проверка ставит обе ширины окна: у них
+    /// разные поля, и узкий токен берётся из того же места.
+    /// </para>
+    /// <para>
+    /// Итог темы не проверяется: папки <c>themes</c> рядом с тестами может
+    /// и не быть, и тогда <c>Apply</c> честно уходит на встроенную тему.
+    /// Падало в обеих ветках, поэтому проверяется то, что общее, — что вызов
+    /// не бросает и что поля страницы на месте.
+    /// </para>
+    /// </remarks>
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void ApplyingAThemeFillsThePagePadding(bool narrow)
+    {
+        Sta.Run(() =>
+        {
+            Zephyron.Gui.Themes.SetNarrow(narrow);
+
+            // Бросал NullReferenceException — ради этого проверка и заведена.
+            Zephyron.Gui.Themes.Apply("breeze", new Zephyron.Core.AppSettings());
+
+            var padding = (Thickness)Application.Current.FindResource("PagePad");
+
+            Assert.Equal(
+                (Thickness)new ResourceDictionary
+                {
+                    Source = new Uri("pack://application:,,,/Zephyron;component/Theme/Tokens.xaml", UriKind.Absolute),
+                }[narrow ? "PagePadNarrow" : "PagePad"],
+                padding);
+
+            Zephyron.Gui.Themes.SetNarrow(false);
+        });
+    }
 }

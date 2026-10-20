@@ -35,6 +35,12 @@ public static class Themes
     private const string DarkPath = "pack://application:,,,/Zephyron;component/Theme/Palette.xaml";
     private const string LightPath = "pack://application:,,,/Zephyron;component/Theme/Light.xaml";
 
+    // Токены оболочки — поля страниц и ширина панели — лежат в Tokens.xaml,
+    // а не в палитре темы: они не зависят от цвета. Читать их надо отсюда,
+    // из палитры их взять нельзя — ключа там нет, и обращение к нему даёт
+    // null, а приведение к Thickness на null роняет запуск.
+    private const string TokensPath = "pack://application:,,,/Zephyron;component/Theme/Tokens.xaml";
+
     /// <summary>
     /// Тема по умолчанию — Breeze Light, основная тема новой дизайн-системы.
     /// </summary>
@@ -102,8 +108,13 @@ public static class Themes
     public static void SetNarrow(bool narrow) => Narrow = narrow;
 
     /// <summary>Поля страницы по нынешней ширине окна.</summary>
+    /// <remarks>
+    /// Берутся из Tokens.xaml, где они и объявлены. Из палитры темы их взять
+    /// нельзя: там таких ключей нет, обращение даёт null, а приведение
+    /// к Thickness на null роняет запуск — так и падало 20.10.
+    /// </remarks>
     private static Thickness Padding() =>
-        (Thickness)new ResourceDictionary { Source = new Uri(BreezePath, UriKind.Absolute) }
+        (Thickness)new ResourceDictionary { Source = new Uri(TokensPath, UriKind.Absolute) }
             [Narrow ? "PagePadNarrow" : "PagePad"];
 
     /// <summary>
