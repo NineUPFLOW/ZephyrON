@@ -23,7 +23,7 @@
                       ScrollViewer.CanContentScroll="True">
             <ItemsControl.Template>
                 <ControlTemplate TargetType="ItemsControl">
-                    <ScrollViewer Style="{StaticResource PageScroll}" Padding="32,28,32,28"
+                    <ScrollViewer Style="{StaticResource PageScroll}" Padding="{DynamicResource PagePad}"
                                   CanContentScroll="True" Focusable="False">
                         <ItemsPresenter />
                     </ScrollViewer>

@@ -89,6 +89,24 @@ public static class Themes
     public static bool WideHome { get; private set; }
 
     /// <summary>
+    /// Оболочка сейчас в узком режиме: рабочая область уже 900 точек.
+    /// </summary>
+    /// <remarks>
+    /// Ставится <c>MainWindow.FitRail</c> и переживает смену темы: поля
+    /// страницы берутся по нему в <see cref="Build"/>, иначе смена темы
+    /// вернула бы широкие поля на узком окне.
+    /// </remarks>
+    public static bool Narrow { get; private set; }
+
+    /// <summary>Сообщает оболочке её ширину — см. <see cref="Narrow"/>.</summary>
+    public static void SetNarrow(bool narrow) => Narrow = narrow;
+
+    /// <summary>Поля страницы по нынешней ширине окна.</summary>
+    private static Thickness Padding() =>
+        (Thickness)new ResourceDictionary { Source = new Uri(BreezePath, UriKind.Absolute) }
+            [Narrow ? "PagePadNarrow" : "PagePad"];
+
+    /// <summary>
     /// Применяет тему по имени папки; при отказе — встроенную из XAML.
     /// </summary>
     /// <summary>
@@ -103,6 +121,7 @@ public static class Themes
     {
         var builtIn = new ResourceDictionary { Source = new Uri(BreezePath, UriKind.Absolute) };
         builtIn["UiScaleTransform"] = Scale(1);
+        builtIn["PagePad"] = Padding();
 
         Swap(builtIn);
         Glass.Set(null, System.Windows.Media.Stretch.UniformToFill);
@@ -164,6 +183,7 @@ public static class Themes
 
         // Масштаб — настройка человека, а не темы: переживает и отказ темы.
         builtIn["UiScaleTransform"] = Scale(look.Scale);
+        builtIn["PagePad"] = Padding();
 
         Swap(builtIn);
         Glass.Set(null, System.Windows.Media.Stretch.UniformToFill);
@@ -272,6 +292,11 @@ public static class Themes
             dictionary["DisplayFont"] = Font(theme, theme.Fonts.Display);
         }
         dictionary["UiScaleTransform"] = Scale(look.Scale);
+
+        // Поля страницы — токен не темы, а оболочки, но объявлены они
+        // в словаре темы, и смена словаря сносит подменённое узкое значение
+        // (см. MainWindow.FitRail). Ставим сразу верное по нынешней ширине.
+        dictionary["PagePad"] = Padding();
 
         var backdrop = (Brush)dictionary["Backdrop"];
 

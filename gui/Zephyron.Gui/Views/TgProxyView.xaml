@@ -9,7 +9,7 @@
         tg-ws-proxy-rs третьим движком (TgWsProxy, TgWsProxyService): Telegram
         Desktop без VPN, через WebSocket и домены за Cloudflare.
     -->
-    <ScrollViewer Style="{StaticResource PageScroll}" Padding="32,28,32,28">
+    <ScrollViewer Style="{StaticResource PageScroll}" Padding="{DynamicResource PagePad}">
         <!--
             На всю ширину, как «Диагностика»: прежде MaxWidth 980, и на широком
             окне справа оставалась пустая треть (снимок владельца 07.10).

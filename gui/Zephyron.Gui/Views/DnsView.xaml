@@ -27,7 +27,7 @@
         </Style>
     </UserControl.Resources>
 
-    <ScrollViewer Style="{StaticResource PageScroll}" Padding="32,28,32,28">
+    <ScrollViewer Style="{StaticResource PageScroll}" Padding="{DynamicResource PagePad}">
         <Grid>
             <!-- Потолок ширины: строка во всю ширину широкого монитора
                  читается хуже колонки, а формы расплываются. -->

@@ -10,7 +10,7 @@
         в «Ещё» и занимало там больше места, чем всё остальное вместе:
         темы, фон, шрифт, размер, меню трея.
     -->
-    <ScrollViewer Style="{StaticResource PageScroll}" Padding="32,28,32,28">
+    <ScrollViewer Style="{StaticResource PageScroll}" Padding="{DynamicResource PagePad}">
         <Grid>
             <Grid.ColumnDefinitions>
                 <!-- Потолок ширины: строка во всю ширину широкого монитора

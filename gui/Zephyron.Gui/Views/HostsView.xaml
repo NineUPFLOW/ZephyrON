@@ -55,7 +55,7 @@
         </DataTemplate>
     </UserControl.Resources>
 
-    <ScrollViewer Style="{StaticResource PageScroll}" Padding="32,28,32,28">
+    <ScrollViewer Style="{StaticResource PageScroll}" Padding="{DynamicResource PagePad}">
         <Grid>
             <Grid.ColumnDefinitions>
                 <!-- Потолок ширины: строка во всю ширину широкого монитора

@@ -54,7 +54,7 @@
         (ConnectionStatus): одно состояние на всё окно, а не два. Кнопка
         запуска тоже там: основное действие всегда на одном месте.
     -->
-    <ScrollViewer Style="{StaticResource PageScroll}" Padding="32,24,32,28"
+    <ScrollViewer Style="{StaticResource PageScroll}" Padding="{DynamicResource PagePad}"
                   HorizontalScrollBarVisibility="Disabled">
         <Grid>
             <Grid.ColumnDefinitions>

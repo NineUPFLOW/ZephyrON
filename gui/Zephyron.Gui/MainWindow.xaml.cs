@@ -161,6 +161,14 @@ public partial class MainWindow : Window
 
         MarkText.Visibility = compact ? Visibility.Collapsed : Visibility.Visible;
         BrandBlurb.Visibility = compact ? Visibility.Collapsed : Visibility.Visible;
+
+        // Поля страниц — тоже уже на узком окне. Значение кладётся в ресурсы
+        // приложения (разметка берёт его DynamicResource), а Themes запоминает
+        // режим: смена темы пересобирает словарь и должна поставить то же.
+        Themes.SetNarrow(compact);
+
+        if (Application.Current is { } application)
+            application.Resources["PagePad"] = (Thickness)FindResource(compact ? "PagePadNarrow" : "PagePad");
     }
 
     /// <summary>Панель сейчас в узком режиме — чтобы не пересобирать её зря.</summary>
