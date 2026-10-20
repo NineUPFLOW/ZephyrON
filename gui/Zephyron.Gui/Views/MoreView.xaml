@@ -27,7 +27,7 @@
                     выше») и отдельно от «Обслуживания»: там необратимое. Отчёт
                     для разбора отсюда переехал в «Диагностику» (владелец 03.10).
                 -->
-                <TextBlock Text="Разбор неисправностей" FontWeight="SemiBold" FontSize="15" Margin="4,22,0,10" />
+                <TextBlock Text="Разбор неисправностей" Style="{StaticResource SectionTitle}" Margin="0,22,0,10" />
 
                 <!--
                     «Сайт не открывается» — в «Ещё», пока в тестовом режиме
@@ -64,7 +64,7 @@
                     </StackPanel>
                 </Border>
 
-                <TextBlock Text="Первый запуск" FontWeight="SemiBold" FontSize="15" Margin="4,22,0,10" />
+                <TextBlock Text="Первый запуск" Style="{StaticResource SectionTitle}" Margin="0,22,0,10" />
 
                 <Border Style="{StaticResource Card}">
                     <Grid>
@@ -84,7 +84,7 @@
                     </Grid>
                 </Border>
 
-                <TextBlock Text="Антивирус" FontWeight="SemiBold" FontSize="15" Margin="4,22,0,10" />
+                <TextBlock Text="Антивирус" Style="{StaticResource SectionTitle}" Margin="0,22,0,10" />
 
                 <Border Style="{StaticResource Card}">
                     <StackPanel>
@@ -109,7 +109,7 @@
                 </Border>
 
 
-                <TextBlock Text="Папки" FontWeight="SemiBold" FontSize="15" Margin="4,22,0,10" />
+                <TextBlock Text="Папки" Style="{StaticResource SectionTitle}" Margin="0,22,0,10" />
 
                 <Border Style="{StaticResource Card}">
                     <StackPanel>
@@ -137,7 +137,7 @@
                     из About в библиотеке, а не пишется здесь: его сверяет
                     с THIRD-PARTY.md тест, и окно не должно знать больше.
                 -->
-                <TextBlock Text="О программе" FontWeight="SemiBold" FontSize="15" Margin="4,22,0,10" />
+                <TextBlock Text="О программе" Style="{StaticResource SectionTitle}" Margin="0,22,0,10" />
 
                 <Border Style="{StaticResource Card}">
                     <StackPanel>
@@ -221,7 +221,7 @@
                     и три из четырёх необратимы. Соседство с переключателями,
                     которые нажимают мимоходом, им противопоказано.
                 -->
-                <TextBlock Text="Обслуживание" FontWeight="SemiBold" FontSize="15" Margin="4,22,0,10" />
+                <TextBlock Text="Обслуживание" Style="{StaticResource SectionTitle}" Margin="0,22,0,10" />
 
                 <Border Style="{StaticResource Card}">
                     <StackPanel>

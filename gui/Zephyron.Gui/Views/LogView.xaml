@@ -4,7 +4,7 @@
              xmlns:local="clr-namespace:Zephyron.Gui"
              Background="{DynamicResource Chrome}">
 
-    <Grid Margin="32,28,32,28">
+    <Grid Margin="{DynamicResource PagePad}">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
@@ -13,35 +13,44 @@
 
         <ContentControl Grid.Row="0" Style="{StaticResource PageHead}"
                         local:PageHead.Title="Журнал"
-                        local:PageHead.Subtitle="Что говорят движки. Здесь видно, через какой выход шло имя и что ответила труба.">
-            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                <!--
-                    Переехало из «Ещё → Прочее» (владелец, 05.10): выключают
-                    журнал, глядя на сам журнал. Движки читают настройку при
-                    запуске — отсюда и предложение перезапустить.
-                -->
-                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,16,0"
-                            ToolTip="Без журнала разбор сбоя сводится к догадкам. Выключают те, кого смущает рост файла: winws2 пишет строку на соединение. Применится при следующем запуске движков.">
-                    <TextBlock Text="Вести журнал" Style="{StaticResource Caption}" VerticalAlignment="Center" Margin="0,0,8,0" />
-                    <ToggleButton x:Name="LogsSwitch" Style="{StaticResource Switch}" Click="OnLogsSwitch" VerticalAlignment="Center" />
-                </StackPanel>
+                        local:PageHead.Subtitle="Что говорят движки. Здесь видно, через какой выход шло имя и что ответила труба." />
 
-                <ComboBox x:Name="Source" Width="176" SelectedIndex="0"
-                          SelectionChanged="OnSource" Margin="0,0,8,0">
-                    <ComboBoxItem Content="sing-box" />
-                    <ComboBoxItem Content="winws2" />
-                    <ComboBoxItem Content="супервизор" />
-                    <ComboBoxItem Content="окно" />
-                </ComboBox>
+        <!--
+            Панель управления журналом — отдельной строкой, а не в шапке.
+            Прежде выключатель, выбор движка и две кнопки стояли справа
+            от заголовка (PageHead), и на узком окне эта строка упиралась
+            в заголовок и обрезалась. Здесь она переносится по ширине.
+        -->
+        <Border Grid.Row="1" Style="{StaticResource Card}" Padding="16,12" Margin="0,0,0,14">
+            <StackPanel>
+                <WrapPanel VerticalAlignment="Center">
+                    <!--
+                        Переехало из «Ещё → Прочее» (владелец, 05.10): выключают
+                        журнал, глядя на сам журнал. Движки читают настройку при
+                        запуске — отсюда и предложение перезапустить.
+                    -->
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,16,8"
+                                ToolTip="Без журнала разбор сбоя сводится к догадкам. Выключают те, кого смущает рост файла: winws2 пишет строку на соединение. Применится при следующем запуске движков.">
+                        <TextBlock Text="Вести журнал" Style="{StaticResource Caption}" VerticalAlignment="Center" Margin="0,0,8,0" />
+                        <ToggleButton x:Name="LogsSwitch" Style="{StaticResource Switch}" Click="OnLogsSwitch" VerticalAlignment="Center" />
+                    </StackPanel>
 
-                <Button x:Name="ErrorsButton" Style="{StaticResource Ghost}"
-                        Content="Только ошибки" Click="OnErrors" Margin="0,0,8,0" />
-                <Button Style="{StaticResource Ghost}" Content="Обновить" Click="OnReload" />
+                    <ComboBox x:Name="Source" Width="176" SelectedIndex="0" VerticalAlignment="Center"
+                              SelectionChanged="OnSource" Margin="0,0,8,8">
+                        <ComboBoxItem Content="sing-box" />
+                        <ComboBoxItem Content="winws2" />
+                        <ComboBoxItem Content="супервизор" />
+                        <ComboBoxItem Content="окно" />
+                    </ComboBox>
+
+                    <Button x:Name="ErrorsButton" Style="{StaticResource Ghost}"
+                            Content="Только ошибки" Click="OnErrors" Margin="0,0,8,8" />
+                    <Button Style="{StaticResource Ghost}" Content="Обновить" Click="OnReload" Margin="0,0,0,8" />
+                </WrapPanel>
+
+                <TextBlock x:Name="Status" Style="{StaticResource Caption}" TextWrapping="Wrap" />
             </StackPanel>
-        </ContentControl>
-
-        <TextBlock Grid.Row="1" x:Name="Status" Style="{StaticResource Caption}"
-                   Margin="4,18,0,10" TextWrapping="Wrap" />
+        </Border>
 
         <Border Grid.Row="2" Style="{StaticResource Card}" Padding="0">
             <ScrollViewer x:Name="Scroller" VerticalScrollBarVisibility="Auto"

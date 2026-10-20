@@ -70,12 +70,12 @@
                 <ContentControl Style="{StaticResource PageHead}"
                                 local:PageHead.Title="Файл hosts"
                                 local:PageHead.Subtitle="Прибитые имена. Запись здесь отменяет любой наш маршрут.">
-                    <StackPanel Orientation="Horizontal">
+                    <WrapPanel Orientation="Horizontal">
                         <Button x:Name="OpenButton" Style="{StaticResource Ghost}"
                                 Content="Открыть файл" Click="OnOpen" Margin="0,0,8,0" />
                         <Button x:Name="CheckButton" Style="{StaticResource Primary}"
                                 Content="Проверить адреса" Click="OnCheck" />
-                    </StackPanel>
+                    </WrapPanel>
                 </ContentControl>
 
                 <!-- Стёртый защитником файл: сказать до того, как человек решит, что ничего не прибивал. -->
@@ -189,7 +189,7 @@
                     VPN, и разбор стоил дня.
                 -->
                 <TextBlock x:Name="OursHeader" Text="Прибито нами"
-                           FontWeight="SemiBold" FontSize="15" Margin="4,20,0,4" />
+                           Style="{StaticResource SectionTitle}" Margin="0,20,0,4" />
                 <TextBlock x:Name="OursNote" Style="{StaticResource Caption}" Margin="4,0,0,10"
                            TextWrapping="Wrap"
                            Text="Эти записи поставила программа, и она же их снимает." />

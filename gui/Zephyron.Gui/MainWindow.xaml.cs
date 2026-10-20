@@ -30,7 +30,6 @@ public partial class MainWindow : Window
         BackdropVideo.Attach(BackdropLayer);
         Closed += (_, _) => BackdropVideo.Detach(BackdropLayer);
 
-        VersionLabel.Text = "версия " + Version();
         BrandVersion.Text = "версия " + Version();
         Motion.Mark(Mark);
         SizeChanged += (_, _) => FitRail();

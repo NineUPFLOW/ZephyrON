@@ -37,7 +37,7 @@
                     </Grid>
                 </Border>
 
-                <TextBlock Text="Цвета" FontWeight="SemiBold" FontSize="15" Margin="4,18,0,10" />
+                <TextBlock Text="Цвета" Style="{StaticResource SectionTitle}" Margin="0,18,0,10" />
 
                 <ItemsControl x:Name="ColorRows" Focusable="False">
                     <ItemsControl.ItemTemplate>
@@ -66,7 +66,7 @@
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
 
-                <TextBlock Text="Фон" FontWeight="SemiBold" FontSize="15" Margin="4,18,0,10" />
+                <TextBlock Text="Фон" Style="{StaticResource SectionTitle}" Margin="0,18,0,10" />
 
                 <Border Style="{StaticResource Card}">
                     <StackPanel>
@@ -179,7 +179,7 @@
                     </StackPanel>
                 </Border>
 
-                <TextBlock Text="Шрифт" FontWeight="SemiBold" FontSize="15" Margin="4,18,0,10" />
+                <TextBlock Text="Шрифт" Style="{StaticResource SectionTitle}" Margin="0,18,0,10" />
 
                 <!-- Один на всю тему; каждый в списке написан собой. -->
                 <Border Style="{StaticResource Card}">

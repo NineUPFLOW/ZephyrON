@@ -112,12 +112,15 @@
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="ContentControl">
-                    <Grid Margin="0,0,0,20">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="Auto" />
-                        </Grid.ColumnDefinitions>
-
+                    <!--
+                        Заголовок и подпись — на всю ширину, кнопки раздела —
+                        строкой под ними. Прежде кнопки стояли справа от
+                        заголовка, в одной строке с ним: у разделов с десятком
+                        кнопок («Оформление», «Ещё») строка вылезала за край
+                        и обрезалась. Отдельная строка переносится (WrapPanel)
+                        и остаётся целой на любой ширине.
+                    -->
+                    <StackPanel Margin="0,0,0,20">
                         <!--
                             Заголовок и подпись прямо на подложке, без карточки
                             и без градиента: в Breeze Light воздух вокруг
@@ -125,7 +128,7 @@
                             спорила бы с карточками ниже. Акцентная черта слева
                             осталась — она называет раздел, не занимая места.
                         -->
-                        <StackPanel Grid.Column="0" Orientation="Horizontal" Margin="0,0,16,0">
+                        <StackPanel Orientation="Horizontal">
                             <Border Width="4" CornerRadius="{StaticResource RPill}"
                                     Background="{DynamicResource Accent}" Margin="0,3,16,3" />
 
@@ -137,9 +140,24 @@
                             </StackPanel>
                         </StackPanel>
 
-                        <ContentPresenter Grid.Column="1" VerticalAlignment="Center"
-                                          HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" />
-                    </Grid>
+                        <!--
+                            Кнопки раздела — отдельной строкой под заголовком,
+                            слева. Содержимое кладётся как есть: строку с
+                            переносом задаёт сам раздел (WrapPanel), а один
+                            ContentPresenter не переносит — он один.
+                        -->
+                        <ContentPresenter x:Name="Actions" Margin="0,14,0,0"
+                                          HorizontalAlignment="Left"
+                                          Content="{TemplateBinding Content}"
+                                          ContentTemplate="{TemplateBinding ContentTemplate}" />
+                    </StackPanel>
+
+                    <ControlTemplate.Triggers>
+                        <!-- Кнопок нет — нет и отступа под них. -->
+                        <Trigger Property="Content" Value="{x:Null}">
+                            <Setter TargetName="Actions" Property="Visibility" Value="Collapsed" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
                 </ControlTemplate>
             </Setter.Value>
         </Setter>
@@ -638,89 +656,6 @@
     </Style>
 
     <!--
-        Пункт бокового меню. Выбранный — таблетка, залитая акцентом целиком:
-        в меню всегда выбран ровно один раздел, и заливка читается сразу,
-        без левой черты у края.
-    -->
-    <Style x:Key="RailItem" TargetType="RadioButton">
-        <Setter Property="Cursor" Value="Hand" />
-        <Setter Property="Margin" Value="10,3" />
-        <Setter Property="ToolTip" Value="{Binding Content, RelativeSource={RelativeSource Self}}" />
-        <Setter Property="Template">
-            <Setter.Value>
-                <ControlTemplate TargetType="RadioButton">
-                    <!--
-                        Пункт — таблетка. Выбранный залит акцентом целиком:
-                        в меню всегда выбран ровно один раздел, и залитая
-                        таблетка показывает это сразу, без левой черты у края.
-                    -->
-                    <Border x:Name="Shape" Background="Transparent"
-                            CornerRadius="{StaticResource RMd}"
-                            BorderThickness="{StaticResource Stroke}" BorderBrush="Transparent"
-                            Padding="12,9">
-                        <StackPanel Orientation="Horizontal">
-                            <!--
-                                Значок (MenuIcon.cs). Колонка постоянной ширины:
-                                знаки разной ширины иначе сдвигали бы подписи,
-                                и столбец текста шёл бы лесенкой.
-                            -->
-                            <TextBlock x:Name="Glyph"
-                                       Text="{Binding (local:MenuIcon.Glyph), RelativeSource={RelativeSource TemplatedParent}}"
-                                       FontFamily="{DynamicResource IconFont}" FontSize="16"
-                                       Width="18" Margin="0,0,12,0" TextAlignment="Center"
-                                       VerticalAlignment="Center"
-                                       Foreground="{DynamicResource Muted}" />
-
-                            <TextBlock x:Name="Label"
-                                       Text="{TemplateBinding Content}"
-                                       Foreground="{DynamicResource Muted}"
-                                       FontSize="13" VerticalAlignment="Center"
-                                       TextTrimming="CharacterEllipsis" />
-
-                            <!-- Точка «есть новое» (RailBadge.cs). -->
-                            <Ellipse x:Name="Badge" Width="7" Height="7" Margin="8,1,0,0"
-                                     VerticalAlignment="Center" Fill="{DynamicResource Accent}"
-                                     Visibility="Collapsed" />
-                        </StackPanel>
-                    </Border>
-                    <ControlTemplate.Triggers>
-                        <!--
-                            Узкое меню: остаётся один значок, подпись прячется,
-                            а название раздела уходит во всплывающую подсказку
-                            (свойство ToolTip самого пункта). Не сворачиваем
-                            значки меньше — попасть в них мышью ещё можно,
-                            а вот убрать подпись совсем нельзя.
-                        -->
-                        <Trigger Property="local:RailCompact.Is" Value="True">
-                            <Setter TargetName="Label" Property="Visibility" Value="Collapsed" />
-                            <Setter TargetName="Badge" Property="Margin" Value="0,-10,-4,0" />
-                            <Setter TargetName="Badge" Property="VerticalAlignment" Value="Top" />
-                            <Setter TargetName="Glyph" Property="Margin" Value="0" />
-                            <Setter TargetName="Glyph" Property="HorizontalAlignment" Value="Center" />
-                            <Setter TargetName="Shape" Property="Padding" Value="10,11" />
-                        </Trigger>
-                        <Trigger Property="local:RailBadge.Shown" Value="True">
-                            <Setter TargetName="Badge" Property="Visibility" Value="Visible" />
-                        </Trigger>
-                        <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="Label" Property="Foreground" Value="{DynamicResource Text}" />
-                            <Setter TargetName="Glyph" Property="Foreground" Value="{DynamicResource Text}" />
-                            <Setter TargetName="Shape" Property="Background" Value="{DynamicResource Surface}" />
-                        </Trigger>
-                        <Trigger Property="IsChecked" Value="True">
-                            <Setter TargetName="Shape" Property="Background" Value="{DynamicResource AccentFill}" />
-                            <Setter TargetName="Label" Property="Foreground" Value="{DynamicResource OnAccent}" />
-                            <Setter TargetName="Glyph" Property="Foreground" Value="{DynamicResource OnAccent}" />
-                            <Setter TargetName="Label" Property="FontWeight" Value="SemiBold" />
-                            <Setter TargetName="Badge" Property="Fill" Value="{DynamicResource OnAccent}" />
-                        </Trigger>
-                    </ControlTemplate.Triggers>
-                </ControlTemplate>
-            </Setter.Value>
-        </Setter>
-    </Style>
-
-<!--
         Значки из Assets: info.svg и pin.svg, обведённые контуром.
 
         Контуром, а не картинкой, по той же причине, по какой стрелка

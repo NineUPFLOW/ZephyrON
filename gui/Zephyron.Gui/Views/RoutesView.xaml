@@ -143,7 +143,7 @@
                 <ContentControl Style="{StaticResource PageHead}"
                                 local:PageHead.Title="Маршруты"
                                 local:PageHead.Subtitle="Куда идёт каждый сервис: напрямую, через десинк или через туннель.">
-                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <WrapPanel Orientation="Horizontal" VerticalAlignment="Center">
                         <ContentControl Style="{StaticResource Info}" Margin="0,0,10,0"
                                         Content="Выбор пишется в config\rules.user.yaml и применяется при следующем запуске движков.&#x0a;&#x0a;Сервис вроде YouTube — папка, внутри — маршруты. Строки и папки перетаскиваются мышью: между строками — новый порядок, на папку — внутрь, на одиночный маршрут — новая папка из двух. Куда идёт маршрут, от этого не меняется.&#x0a;&#x0a;Имя означает зону: example.com покрывает и www.example.com, и cdn.example.com.&#x0a;&#x0a;Программа — папка из двух маршрутов: «Домены» и «Адреса». Сначала они пустые и выключены; пока идёт «Наблюдение» и включено автопополнение, туда дописывается всё, что программа открывает. Путь каждому выберите сами.&#x0a;&#x0a;«Десинк» означает «мимо туннеля, чинит пресет»: рецепт не назначается, и если имя не попало ни в один список пресета, с ним не сделают ничего.&#x0a;&#x0a;«Напрямую» — мимо туннеля и мимо десинка: имя уходит в исключения, и winws2 его не трогает вовсе, как и прибитое в hosts.&#x0a;&#x0a;Проверить, что применится, можно в «Проверке блокировок»." />
 
@@ -172,7 +172,7 @@
                         <Button x:Name="ReloadButton" Style="{StaticResource Ghost}"
                                 Content="Перечитать" Click="OnReload"
                                 ToolTip="Перечитывает правила, пресет и файл hosts с диска. Нужно, если правили их снаружи программы." />
-                    </StackPanel>
+                    </WrapPanel>
                 </ContentControl>
 
                 <TextBlock x:Name="OwnSummary" Style="{StaticResource Caption}"

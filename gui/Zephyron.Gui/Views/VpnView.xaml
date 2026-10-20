@@ -386,7 +386,7 @@
                 <ContentControl Style="{StaticResource PageHead}"
                                 local:PageHead.Title="VPN"
                                 local:PageHead.Subtitle="Подписки, их серверы и то, через что идёт трафик.">
-                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <WrapPanel Orientation="Horizontal" VerticalAlignment="Center">
                         <Button x:Name="RefreshButton" Style="{StaticResource Ghost}"
                                 Content="Обновить" Click="OnRefresh" Margin="0,0,8,0" />
                         <!--
@@ -400,7 +400,7 @@
 
                         <Button x:Name="MeasureButton" Style="{StaticResource Primary}"
                                 Content="Замерить все" Click="OnMeasure" />
-                    </StackPanel>
+                    </WrapPanel>
                 </ContentControl>
 
                 <!--
