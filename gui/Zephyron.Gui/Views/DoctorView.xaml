@@ -147,7 +147,7 @@
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
                             <StackPanel Margin="0,0,0,16">
-                                <TextBlock Text="{Binding Title}" FontWeight="SemiBold" FontSize="15"
+                                <TextBlock Text="{Binding Title}" Style="{StaticResource CardTitle}"
                                            Margin="4,0,0,8" />
 
                                 <ItemsControl ItemsSource="{Binding Lines}">

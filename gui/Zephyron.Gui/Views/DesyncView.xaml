@@ -252,7 +252,7 @@
                 -->
                 <Border Style="{StaticResource Card}" Margin="0,12,0,0" Padding="16,14,16,16">
                     <StackPanel>
-                        <TextBlock Text="Параметры работы" FontWeight="SemiBold" FontSize="15" Margin="2,0,0,12" />
+                        <TextBlock Text="Параметры работы" Style="{StaticResource CardTitle}" Margin="2,0,0,12" />
 
                         <Grid x:Name="ParamsGrid" SizeChanged="OnParamsSize">
                             <Grid.ColumnDefinitions>
@@ -416,7 +416,7 @@
                     </Grid.ColumnDefinitions>
 
                     <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="4,0,16,0">
-                        <TextBlock x:Name="OwnHeader" Text="Пресеты Zephyron" FontWeight="SemiBold" FontSize="18" />
+                        <TextBlock x:Name="OwnHeader" Text="Пресеты Zephyron" Style="{StaticResource SectionTitle}" />
                         <TextBlock x:Name="OwnNote" Style="{StaticResource Caption}" Margin="0,4,0,0"
                                    TextWrapping="Wrap"
                                    Text="Ведём мы: собраны по замерам и правятся вместе с программой. Новые — сверху." />
@@ -438,8 +438,8 @@
 
                 <ItemsControl x:Name="Own" ItemTemplate="{StaticResource PresetItem}" />
 
-                <TextBlock x:Name="OthersHeader" Text="Пресеты сообщества"
-                           FontWeight="SemiBold" FontSize="18" Margin="4,20,0,4" />
+                <TextBlock x:Name="OthersHeader" Text="Пресеты сообщества" Style="{StaticResource SectionTitle}"
+                           Margin="4,20,0,4" />
                 <TextBlock x:Name="OthersNote" Style="{StaticResource Caption}" Margin="4,0,0,10"
                            TextWrapping="Wrap"
                            Text="Достались от Zapret или положены вами. Работают, но за их состав мы не отвечаем." />
