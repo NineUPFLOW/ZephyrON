@@ -248,6 +248,29 @@ public sealed record ProbeOutcome
 
     public string? Detail { get; init; }
 
+    /// <summary>
+    /// Сколько байт ответа пришло, пока стадия шла; у стадий без передачи — <c>null</c>.
+    /// </summary>
+    /// <remarks>
+    /// Полем, а не только словами в <see cref="Detail"/>: по числу узнаётся
+    /// почерк (<see cref="Signatures"/>) — заморозка ТСПУ встаёт на одних
+    /// и тех же 13–20 КБ, медленная страница — где придётся.
+    /// </remarks>
+    public int? Received { get; init; }
+
+    /// <summary>
+    /// Куда сайт переадресовал — другое имя той же зоны; <c>null</c> — никуда.
+    /// </summary>
+    /// <remarks>
+    /// Браузер туда и идёт, и открывается или нет уже там (<see cref="BlockCheck.SameSiteRedirect"/>).
+    /// </remarks>
+    public string? Moved { get; init; }
+
+    /// <summary>
+    /// Адреса имени, которые молчали, пока другой ответил; у прочих стадий пусто.
+    /// </summary>
+    public IReadOnlyList<string> Silent { get; init; } = [];
+
     public string Describe() => Ok
         ? "ок"
         : Reset ? "RST"
@@ -311,6 +334,16 @@ public sealed record TargetReport
     public DnsSpoofResult Spoof { get; init; } = DnsSpoofResult.Unknown;
 
     public IReadOnlyList<string> Addresses { get; init; } = Array.Empty<string>();
+
+    /// <summary>
+    /// Адрес, с которым встало соединение; <c>null</c> — не встало ни с одним.
+    /// </summary>
+    /// <remarks>
+    /// Не первый из <see cref="Addresses"/>: проба перебирает адреса, и закрытый
+    /// узел виден только по тому, на котором она на деле застряла
+    /// (<see cref="Signatures"/>, 14.10 — fandom.com на 172.66.2.166).
+    /// </remarks>
+    public string? Answered { get; init; }
 
     /// <summary>
     /// Замер вправду ушёл в туннель — по адресу, в который разрешилось имя.
@@ -763,11 +796,13 @@ public static class BlockCheck
     public static BlockKind FakeIpSource(IReadOnlyList<Zephyron.Core.Diagnostics.OtherTunnel> foreignTunnels) =>
         foreignTunnels.Count > 0 ? BlockKind.ForeignFakeIp : BlockKind.RouterFakeIp;
 
+    /// <param name="followed">Это уже имя из переадресации — дальше не идти.</param>
     private static async Task<TargetReport> ProbeAsync(
         string host,
         string? service,
         CancellationToken cancellationToken,
-        bool throughTunnel)
+        bool throughTunnel,
+        bool followed = false)
     {
         IPAddress[] addresses;
 
@@ -998,6 +1033,24 @@ public static class BlockCheck
             }
         }
 
+        // Переадресация на другое имя той же зоны — ещё не ответ сайта.
+        // 19.10 star-history.com отвечал 301 на www за 167 Б и звался
+        // «доступен», а www.star-history.com замерзал на 3 261 Б, 4 из 4, —
+        // владелец открыл его только через VPN. Браузер идёт по Location,
+        // туда же идёт и проба: один шаг, вердикт — того имени, строка — этого.
+        if (!followed && kind == BlockKind.None && data.Moved is { } next)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var there = await ProbeAsync(next, service, cancellationToken, throughTunnel, followed: true);
+
+            return there with
+            {
+                Host = host,
+                Data = there.Data with { Detail = $"переадресует на {next}: {there.Data.Detail ?? there.Data.Describe()}" },
+            };
+        }
+
         return new TargetReport
         {
             Host = host,
@@ -1017,6 +1070,7 @@ public static class BlockCheck
             Spoof = viaTunnel ? DnsSpoofResult.Unknown : await SettleSpoofAsync(host, real, walk.Spoof, cancellationToken),
 
             Addresses = shown,
+            Answered = answered?.ToString(),
             Tunnelled = viaTunnel,
             ExpectedTunnel = throughTunnel,
         };
@@ -1404,6 +1458,7 @@ public static class BlockCheck
                     Detail = silent.Count == 0
                         ? null
                         : $"{address}:{port} ответил; молчали {string.Join(", ", silent)}",
+                    Silent = silent.Select(a => a.ToString()).ToList(),
                 });
             }
             catch (Exception ex)
@@ -1551,6 +1606,13 @@ public static class BlockCheck
         using var live = client;
         using var ssl = new SslStream(live.GetStream(), leaveInnerStreamOpen: false, (_, _, _, _) => true);
 
+        // Дальше разговор идёт с одним адресом — тем, что принял соединение,
+        // и отказ называется им. Прежде называлось первое из всех адресов
+        // имени: 19.10 у ai.google.dev, grok.com и notion.so отчёт писал
+        // «нет ответа за 4 с, 157.22.177.90:443», а тот не принял и TCP —
+        // молчало рукопожатие на 132.243.112.221.
+        IReadOnlyList<IPAddress> talked = answered is null ? real : [answered];
+
         var handshake = Stopwatch.StartNew();
 
         try
@@ -1577,7 +1639,7 @@ public static class BlockCheck
             {
                 Answered = answered,
                 Tcp = tcp,
-                Tls = Refusal(ex, handshake.Elapsed, real),
+                Tls = Refusal(ex, handshake.Elapsed, talked),
                 Data = Failed(null),
                 Spoof = DnsSpoof.Judge(host, real, certificate: null),
             };
@@ -1600,7 +1662,7 @@ public static class BlockCheck
             Tls = new ProbeOutcome { Ok = true, Elapsed = handshake.Elapsed },
             Version = Name(ssl.SslProtocol),
             Spoof = DnsSpoof.Judge(host, real, shown),
-            Data = await ReadBodyAsync(ssl, host, real, cancellationToken),
+            Data = await ReadBodyAsync(ssl, host, talked, cancellationToken),
         };
     }
 
@@ -1829,6 +1891,11 @@ public static class BlockCheck
             long? promised = null;
             bool challenged = false;
             bool regionRefusal = false;
+            bool chunked = false;
+            string? moved = null;
+
+            // Последние байты потока — узнать конец ответа кусками (LastChunk).
+            var tail = Array.Empty<byte>();
 
             // Длина заголовков считается отдельно: Content-Length обещает
             // только тело, а total растёт с первого байта ответа. Без поправки
@@ -1864,6 +1931,7 @@ public static class BlockCheck
                         Detail = promised is { } expected
                             ? $"поток замер на {total} из {expected} Б, тишина {StallWindow.TotalSeconds:0} с"
                             : $"поток замер на {total} Б, тишина {StallWindow.TotalSeconds:0} с",
+                        Received = total,
                     };
                 }
 
@@ -1888,9 +1956,16 @@ public static class BlockCheck
                     regionRefusal = status is >= 300 and < 400
                         && Uri.TryCreate(HeaderValue(buffer, read, "Location"), UriKind.Absolute, out var location)
                         && PinPicker.IsRegionRefusal(location);
+
+                    chunked = HeaderValue(buffer, read, "Transfer-Encoding")?
+                        .Contains("chunked", StringComparison.OrdinalIgnoreCase) == true;
+
+                    if (status is >= 300 and < 400 && !regionRefusal)
+                        moved = SameSiteRedirect(host, HeaderValue(buffer, read, "Location"));
                 }
 
                 total += read;
+                tail = Tail(tail, buffer, read, LastChunk.Length);
 
                 // Тело пришло целиком — дальше ждать нечего.
                 //
@@ -1902,6 +1977,17 @@ public static class BlockCheck
                 // сервером к этому отношения не имеет и зависит от его
                 // настроек, а не от нашей связи.
                 if (promised is { } body && header > 0 && total - header >= body)
+                    break;
+
+                // Ответ кусками закончен последним, пустым куском — длины у него
+                // нет, и прежде проба читала до закрытия соединения. На закрытии
+                // и падала: 14.10 reborder.app (Next.js на Vercel, через туннель)
+                // восемь раз из восьми — «оборвано на 3844 Б: указанные данные
+                // не могут быть расшифрованы», при том что 3844 Б — это весь ответ
+                // (643 Б заголовков, 3179 Б brotli и разметка кусков), а curl,
+                // знающий конец кусков, получал страницу шесть раз из шести.
+                // Вердикт выходил «туннель не доставил» у работающего сайта.
+                if (chunked && tail.AsSpan().SequenceEqual(LastChunk))
                     break;
 
                 // Ответ, которому тело не положено, закончен на заголовках.
@@ -1936,6 +2022,8 @@ public static class BlockCheck
                     : challenged
                         ? "Cloudflare проверяет на робота — связь исправна, браузер проверку пройдёт"
                         : promised is { } size ? $"{total} из {size} Б" : $"{total} Б",
+                Received = total,
+                Moved = moved,
             };
         }
         catch (Exception ex)
@@ -1949,6 +2037,7 @@ public static class BlockCheck
                 Detail = total > 0
                     ? $"оборвано на {total} Б: {Explain(ex, dialled, 443)}"
                     : Explain(ex, dialled, 443),
+                Received = total,
             };
         }
     }
@@ -1973,6 +2062,26 @@ public static class BlockCheck
         }
 
         return 0;
+    }
+
+    /// <summary>Последний кусок ответа кусками: пустой кусок без хвостовых заголовков.</summary>
+    /// <remarks>
+    /// Узнаётся по концу потока, а не разбором кусков: тело сжатое и двоичное,
+    /// и эти семь байт посреди него на границе чтения почти невозможны.
+    /// Хвостовые заголовки после пустого куска сайты не шлют; пришли бы —
+    /// проба дочитала бы до закрытия, как раньше.
+    /// </remarks>
+    internal static readonly byte[] LastChunk = "\r\n0\r\n\r\n"u8.ToArray();
+
+    /// <summary>Последние <paramref name="keep"/> байт потока после очередного чтения.</summary>
+    internal static byte[] Tail(byte[] previous, byte[] buffer, int read, int keep)
+    {
+        var joined = new byte[previous.Length + read];
+
+        previous.CopyTo(joined, 0);
+        Array.Copy(buffer, 0, joined, previous.Length, read);
+
+        return joined.Length <= keep ? joined : joined[^keep..];
     }
 
     /// <summary>
@@ -2010,6 +2119,34 @@ public static class BlockCheck
     /// </remarks>
     internal static bool IsBotChallenge(byte[] buffer, int length) =>
         string.Equals(HeaderValue(buffer, length, "cf-mitigated"), "challenge", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Имя, на которое переадресует ответ, если это другое имя той же зоны.
+    /// </summary>
+    /// <remarks>
+    /// Только https и только своя зона, как в окне выбора рецепта: апекс
+    /// на www и обратно — самое частое, а уход на чужую зону — уже другой
+    /// сайт со своим вердиктом. Тот же хост с другим путём — не переход:
+    /// соединение, фильтр и адрес у него те же.
+    /// </remarks>
+    public static string? SameSiteRedirect(string host, string? location)
+    {
+        if (!Uri.TryCreate(location?.Trim(), UriKind.Absolute, out var target)
+            || target.Scheme != Uri.UriSchemeHttps
+            || !target.IsDefaultPort
+            || target.Host.Equals(host, StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        var a = target.Host.TrimEnd('.');
+        var b = host.TrimEnd('.');
+
+        return a.EndsWith("." + b, StringComparison.OrdinalIgnoreCase)
+            || b.EndsWith("." + a, StringComparison.OrdinalIgnoreCase)
+            ? a.ToLowerInvariant()
+            : null;
+    }
 
     internal static string? HeaderValue(byte[] buffer, int length, string name)
     {
@@ -2235,48 +2372,67 @@ public static class BlockCheck
         IReadOnlyList<string> hosts,
         CancellationToken cancellationToken)
     {
-        var suspicious = new List<string>();
+        // По четыре разом, а не по одному. Имена закрытые, и почти каждое
+        // ждёт свои четыре секунды на молчащем адресе: замер 19.10 у владельца,
+        // 12 имён по одному — 21–24 с в конце каждой проверки блокировок.
+        // Порядок ответа — порядок имён: по нему строка и читается.
+        using var slots = new SemaphoreSlim(4);
 
-        foreach (var host in hosts)
+        var verdicts = await Task.WhenAll(hosts.Select(async host =>
         {
+            await slots.WaitAsync(cancellationToken);
+
             try
             {
-                var system = (await Dns.GetHostAddressesAsync(host, cancellationToken))
-                    .Where(a => a.AddressFamily == AddressFamily.InterNetwork)
-                    .Select(a => a.ToString())
-                    .ToHashSet(StringComparer.Ordinal);
-
-                if (system.Count == 0)
-                    continue;
-
-                var doh = await DohResolveAsync(host, cancellationToken);
-
-                if (doh.Count == 0)
-                    continue;
-
-                if (system.Overlaps(doh))
-                    continue;
-
-                // Адрес от DoH — точка отсчёта. Если и он не предъявляет
-                // сертификата на это имя, сравнивать не с чем: так ведут себя
-                // домены, у которых TLS живёт только на поддоменах
-                // (googlevideo.com — ровно такой). Молчим.
-                if (!await CertificateMatchesAsync(host, doh.First(), cancellationToken))
-                    continue;
-
-                // Точка отсчёта есть: имя обслуживается по TLS, и честный
-                // адрес это подтверждает. Раз системный не подтверждает,
-                // дело именно в адресе — SNI-то в обоих случаях настоящий.
-                if (!await CertificateMatchesAsync(host, system.First(), cancellationToken))
-                    suspicious.Add(host);
+                return await SystemAddressIsBadAsync(host, cancellationToken);
             }
-            catch (Exception)
+            finally
             {
-                // Неразрешимое имя — забота другой проверки.
+                slots.Release();
             }
-        }
+        }));
 
-        return suspicious;
+        return hosts.Where((_, i) => verdicts[i]).ToList();
+    }
+
+    /// <summary>Системный адрес имени не предъявляет его сертификата, а честный предъявляет.</summary>
+    private static async Task<bool> SystemAddressIsBadAsync(string host, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var system = (await Dns.GetHostAddressesAsync(host, cancellationToken))
+                .Where(a => a.AddressFamily == AddressFamily.InterNetwork)
+                .Select(a => a.ToString())
+                .ToHashSet(StringComparer.Ordinal);
+
+            if (system.Count == 0)
+                return false;
+
+            var doh = await DohResolveAsync(host, cancellationToken);
+
+            if (doh.Count == 0)
+                return false;
+
+            if (system.Overlaps(doh))
+                return false;
+
+            // Адрес от DoH — точка отсчёта. Если и он не предъявляет
+            // сертификата на это имя, сравнивать не с чем: так ведут себя
+            // домены, у которых TLS живёт только на поддоменах
+            // (googlevideo.com — ровно такой). Молчим.
+            if (!await CertificateMatchesAsync(host, doh.First(), cancellationToken))
+                return false;
+
+            // Точка отсчёта есть: имя обслуживается по TLS, и честный
+            // адрес это подтверждает. Раз системный не подтверждает,
+            // дело именно в адресе — SNI-то в обоих случаях настоящий.
+            return !await CertificateMatchesAsync(host, system.First(), cancellationToken);
+        }
+        catch (Exception)
+        {
+            // Неразрешимое имя — забота другой проверки.
+            return false;
+        }
     }
 
     /// <summary>

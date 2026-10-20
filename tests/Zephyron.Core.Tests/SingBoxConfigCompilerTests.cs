@@ -72,6 +72,20 @@ public class SingBoxConfigCompilerTests
         Assert.Contains("fdfe:dcba:9876::1/126", tun.GetProperty("address").EnumerateArray().Select(a => a.GetString()));
     }
 
+    /// <summary>
+    /// Сертификаты — списком Mozilla (19.10): проверка через Windows роняла
+    /// движок с 0xc0000005 в root_windows.go.
+    /// </summary>
+    [Fact]
+    public void EngineAndProbeVerifyCertificatesWithoutWindows()
+    {
+        var engine = CompileProxyOnly(ProxyOnlyRules);
+        var probe = JsonDocument.Parse(new SingBoxConfigCompiler().CompileProbeConfig(Server(), 24080, null)).RootElement;
+
+        Assert.Equal("mozilla", engine.GetProperty("certificate").GetProperty("store").GetString());
+        Assert.Equal("mozilla", probe.GetProperty("certificate").GetProperty("store").GetString());
+    }
+
     [Theory]
     [InlineData("172.19.0.1/30", "172.19.0.2")]
     [InlineData("10.0.0.255/24", "10.0.1.0")]
@@ -184,7 +198,7 @@ public class SingBoxConfigCompilerTests
         var engine = RuleSetLoader.Load(yaml);
         var result = new SingBoxConfigCompiler().Compile(engine.RuleSet, [Server()], options);
 
-        return JsonDocument.Parse(result.Json).RootElement.Clone();
+        return JsonDocument.Parse(WithoutCanary.Strip(result.Json)).RootElement.Clone();
     }
 
     private static JsonElement DnsServer(JsonElement root, string tag) =>
@@ -1152,7 +1166,7 @@ public class SingBoxConfigCompilerTests
         Assert.Equal(server.Host, outbound.GetProperty("tls").GetProperty("server_name").GetString());
     }
 
-    private static string? FindSingBox()
+    internal static string? FindSingBox()
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);
 

@@ -69,13 +69,24 @@ public sealed record SectionRow(string Title, string Body, Brush Color);
 /// </remarks>
 public partial class CheckView : UserControl
 {
-    /// <summary>Сколько проб держать в воздухе. То же число, что в консоли.</summary>
+    /// <summary>Сколько проб держать в воздухе.</summary>
     /// <remarks>
-    /// Четыре, а не восемь: при восьми проверка топила сама себя — последняя
-    /// проба каждой цели тянет до четверти мегабайта, и восемь таких закачек
-    /// разом съедают полосу, в которой соседи ждут ответа свои четыре секунды.
+    /// <para>
+    /// Было четыре: при восьми проверка топила сама себя — последняя проба
+    /// каждой цели тянула до четверти мегабайта, и восемь таких закачек разом
+    /// съедали полосу, в которой соседи ждали ответа свои четыре секунды.
+    /// Так было до 20.09, пока проба просила страницы без сжатия.
+    /// </para>
+    /// <para>
+    /// Со сжатием (ReadBodyAsync) страницы мелкие, и время уходит не на полосу,
+    /// а на ожидание молчащих. Замер 19.10 у владельца, 166 имён тем же кодом,
+    /// движки подняты: по четыре — 82 с, по восемь — 48 и 43 с; вердикты по
+    /// закрытым те же 14 имён во всех трёх прогонах, разошлись лишь
+    /// cdn.bsky.app (его CDN и так чередует адреса) и botstop.com («сторона
+    /// не даёт наш TLS», в итог не идёт).
+    /// </para>
     /// </remarks>
-    private const int Parallelism = 4;
+    private const int Parallelism = 8;
 
     /// <summary>
     /// Строки и ход проверки живут дольше самого раздела.
@@ -707,8 +718,10 @@ public partial class CheckView : UserControl
             foreach (var part in service.Parts)
             {
                 // Адресные части проверять нечем: у них нет имени, а стучаться
-                // в подсеть наугад — не проверка.
-                if (part.ByAddress)
+                // в подсеть наугад — не проверка. Большой перечень (реестр
+                // блокировок, 15.10) — тоже мимо: его первые записи — мёртвые
+                // домены вроде a1b1.ru, в отчёте от них был бы только шум.
+                if (part.ByAddress || part.Bulk)
                     continue;
 
                 int taken = 0;
@@ -777,9 +790,10 @@ public partial class CheckView : UserControl
             : HostsFile.DescribeDesyncExclusions(engine.RuleSet, tunnelUp: tunnelInUse);
 
         // И дыры в щите — имена внутри его зон, которым оставлен десинк.
-        IReadOnlyList<string> holes = engine is null
+        // Множеством: с реестром блокировок их десятки тысяч (15.10).
+        var holes = HostsFile.ShieldHoleSet(engine is null
             ? []
-            : HostsFile.CollectShieldHoles(engine.RuleSet, bypassed);
+            : HostsFile.CollectShieldHoles(engine.RuleSet, bypassed));
 
         var running = targets.Select(async target =>
         {
@@ -1084,6 +1098,18 @@ public partial class CheckView : UserControl
                     + Cure(g.First().Host))),
                 (Brush)FindResource("Warn")));
 
+        // Почерки — то, чего одно имя не покажет: байты до обрыва, адрес
+        // из hosts, общий узел у нескольких имён (Signatures, 14.10). Сразу
+        // за итогом: при массовом отказе находка одна, и она отменяет
+        // всё, что ниже.
+        foreach (var finding in Signatures.Find(_reports, ReadHosts()))
+        {
+            sections.Add(new SectionRow(
+                finding.Headline,
+                finding.Describe(),
+                (Brush)FindResource(finding.Calm ? "Muted" : "Warn")));
+        }
+
         if (engine is not null)
         {
             var conflicts = RouteConflicts.Find(engine.RuleSet);
@@ -1348,6 +1374,19 @@ public partial class CheckView : UserControl
         {
             // Подписка могла не ответить, сервер — не подняться. Это незнание,
             // и раздела просто не будет: пустая проверка лучше выдуманной.
+        }
+    }
+
+    /// <summary>Файл hosts целиком; не прочитался — <c>null</c>, и почерк пина не ищется.</summary>
+    private static IReadOnlyDictionary<string, List<System.Net.IPAddress>>? ReadHosts()
+    {
+        try
+        {
+            return HostsFile.Read();
+        }
+        catch (Exception)
+        {
+            return null;
         }
     }
 

@@ -11,13 +11,15 @@ public sealed record PoolSource(string Name, string Url);
 /// <param name="Servers">Серверы в порядке подписки, с тегами пула (<see cref="SubscriptionPool.Tag"/>).</param>
 /// <param name="FromReserve">Панель не ответила, и серверы взяты из запаса прошлого удачного чтения.</param>
 /// <param name="Error">Почему не прочиталась; <c>null</c> — прочиталась или взята из запаса.</param>
+/// <param name="Deferred">Взята из запаса, не спрашивая панель: её спросят после запуска (<see cref="SubscriptionPool.StartFromReserveFor"/>).</param>
 public sealed record PoolPart(
     PoolSource Source,
     IReadOnlyList<ProxyServer> Servers,
     bool FromReserve,
     DateTimeOffset? ReserveAt,
     string? Error,
-    SubscriptionInfo? Info);
+    SubscriptionInfo? Info,
+    bool Deferred = false);
 
 /// <summary>Пул целиком: серверы для движка и отчёт по каждой подписке.</summary>
 /// <param name="Servers">Без двойников, с тегами пула — то, что идёт в конфиг.</param>
@@ -64,11 +66,16 @@ public static class SubscriptionPool
     /// в одну секунду с одного адреса ей не нравятся (урок раздела VPN,
     /// который по той же причине читает подписки по очереди).
     /// </remarks>
+    /// <param name="deferPanels">
+    /// Запуск движков: подписку с запасом моложе <see cref="StartFromReserveFor"/>
+    /// брать из него, не дожидаясь панели, — её спросит тот, кто звал, после запуска.
+    /// </param>
     public static async Task<PoolResult> BuildAsync(
         IReadOnlyList<PoolSource> sources,
         CancellationToken cancellationToken,
         string? reserveDirectory = null,
-        IReadOnlyList<string>? keys = null)
+        IReadOnlyList<string>? keys = null,
+        bool deferPanels = false)
     {
         var folder = reserveDirectory ?? DefaultReserveDirectory;
         var raw = new PoolPart[sources.Count];
@@ -79,7 +86,10 @@ public static class SubscriptionPool
             .Select(async panel =>
             {
                 foreach (var (source, index) in panel)
-                    raw[index] = await ReadAsync(source, folder, cancellationToken);
+                {
+                    raw[index] = (deferPanels ? Deferred(source, folder, DateTimeOffset.Now) : null)
+                        ?? await ReadAsync(source, folder, cancellationToken);
+                }
             }));
 
         // Отдельные ключи — последним источником: читать их не надо, они уже
@@ -138,6 +148,53 @@ public static class SubscriptionPool
     /// </remarks>
     public static readonly TimeSpan FreshFor = TimeSpan.FromMinutes(30);
 
+    /// <summary>
+    /// До какого возраста запасом можно запускать движки, не дожидаясь панели.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Панель TRUST 16.10 отвечала 502 через 10 с, и запуск ждал её столько же:
+    /// владелец принимал это за «движки поднимаются не с первого раза». Свежий
+    /// запас (<see cref="FreshFor"/>) и так читается без сети; старше получаса
+    /// запуск шёл к панели и ждал её, хотя в запасе лежал вчерашний вечер.
+    /// </para>
+    /// <para>
+    /// Сутки, а не любой возраст: серверы у продавцов меняются раз в дни,
+    /// и запас после выходных скорее устарел — тогда честнее подождать панель,
+    /// чем поднять туннель на старые ключи. Моложе — панель спрашивается после
+    /// запуска, а изменившийся список предлагается перезапуском, как у
+    /// перечитывания без живых выходов.
+    /// </para>
+    /// </remarks>
+    public static readonly TimeSpan StartFromReserveFor = TimeSpan.FromHours(24);
+
+    /// <summary>Подписка из запаса без панели — для запуска; <c>null</c> — запас не годится, читать как обычно.</summary>
+    internal static PoolPart? Deferred(PoolSource source, string folder, DateTimeOffset now)
+    {
+        if (LoadReserve(folder, source.Url) is not { } kept || kept.Info.Servers.Count == 0)
+            return null;
+
+        var age = now - kept.At;
+
+        // Свежий читается без сети и так, и спрашивать его потом незачем.
+        if (age < FreshFor || age >= StartFromReserveFor)
+            return null;
+
+        return new PoolPart(source, kept.Info.Servers, false, kept.At, null, kept.Info, Deferred: true);
+    }
+
+    /// <summary>
+    /// Те же ли серверы: адреса, ключи, параметры и имена — то, без чего новый
+    /// список в движок не попадёт. Квота и срок не в счёт.
+    /// </summary>
+    public static bool SameServers(IReadOnlyList<ProxyServer> before, IReadOnlyList<ProxyServer> after)
+    {
+        static HashSet<string> Of(IReadOnlyList<ProxyServer> servers) =>
+            servers.Select(s => Identity(s) + "|" + s.Tag).ToHashSet(StringComparer.Ordinal);
+
+        return Of(before).SetEquals(Of(after));
+    }
+
     /// <summary>Одна подписка: свежий запас без сети, иначе панель, при отказе — запас любой давности.</summary>
     /// <param name="force">Идти к панели, даже если запас свежий: ⟳ и «Обновить».</param>
     public static async Task<SubscriptionRead> ReadOneAsync(
@@ -167,6 +224,12 @@ public static class SubscriptionPool
             if (info.Servers.Count > 0 && client.LastBody is { } body)
                 SaveReserve(folder, url, body, info);
 
+            // Расход — для полоски и прогноза на вкладке VPN (SubscriptionUsage, 19.10).
+            // Только при своей папке запаса: чужая — это проверка, и писать
+            // её подписки в историю рабочей установки незачем.
+            if (reserveDirectory is null)
+                SubscriptionUsage.Record(url, info, DateTimeOffset.Now);
+
             if (info.Servers.Count > 0 || info.Errors.Count == 0)
                 return new SubscriptionRead(info, DateTimeOffset.Now, SubscriptionReadSource.Panel, null);
 
@@ -188,10 +251,53 @@ public static class SubscriptionPool
                 : PanelError.Describe(ex);
         }
 
+        if (await ReadFallbackAsync(folder, url, cancellationToken) is { } rescued)
+            return rescued with { Error = $"{error} — прочитана по запасному адресу поставщика" };
+
         if (LoadReserve(folder, url) is { } reserve && reserve.Info.Servers.Count > 0)
             return new SubscriptionRead(reserve.Info, reserve.At, SubscriptionReadSource.Reserve, error);
 
         return new SubscriptionRead(null, null, SubscriptionReadSource.None, error);
+    }
+
+    /// <summary>
+    /// Запасной адрес панели (<c>fallback-url</c>), если основной не ответил.
+    /// </summary>
+    /// <remarks>
+    /// Адрес поставщик называет заранее, в прошлом удачном ответе, — потому он
+    /// и лежит в запасе. Как в Happ: на ошибку, тишину или срок. Прочитанное
+    /// ложится в запас под основной ссылкой: в книге подписка та же, и ссылка
+    /// в ней не меняется (этим занят <c>new-url</c>). Неудача запасного не
+    /// заменяет причину основного: человеку важнее, почему не ответила его панель.
+    /// </remarks>
+    private static async Task<SubscriptionRead?> ReadFallbackAsync(string folder, string url, CancellationToken cancellationToken)
+    {
+        if (LoadReserve(folder, url)?.Info.FallbackUrl is not { } fallback
+            || string.Equals(fallback, url, StringComparison.Ordinal))
+            return null;
+
+        try
+        {
+            using var client = new SubscriptionClient();
+            var info = await client.FetchAsync(new Uri(fallback), cancellationToken);
+
+            if (info.Servers.Count == 0 || client.LastBody is not { } body)
+                return null;
+
+            // Запасная панель могла не назвать запасного адреса — прежний остаётся.
+            info = info with { FallbackUrl = info.FallbackUrl ?? fallback };
+            SaveReserve(folder, url, body, info);
+
+            return new SubscriptionRead(info, DateTimeOffset.Now, SubscriptionReadSource.Panel, null);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception)
+        {
+            return null;
+        }
     }
 
     private static async Task<PoolPart> ReadAsync(PoolSource source, string folder, CancellationToken cancellationToken)
@@ -380,7 +486,15 @@ public static class SubscriptionPool
     /// Квота и срок лежат рядом с телом: они приходят заголовками, а не в теле,
     /// и без них строка подписки из запаса теряла бы «86 дн» и остаток трафика.
     /// </summary>
-    private sealed record ReserveMeta(string? Title, long Upload, long Download, long Total, DateTimeOffset? Expires, double? Interval);
+    /// <remarks>
+    /// С 15.10 — и остальное, что поставщик шлёт заголовками: поддержка, сайт,
+    /// объявление и запасной адрес панели. Без них карточка подписки из запаса
+    /// теряла бы кнопки, а запасной адрес и нужен ровно тогда, когда панель
+    /// не отвечает, — то есть когда кроме запаса взять его неоткуда.
+    /// </remarks>
+    private sealed record ReserveMeta(
+        string? Title, long Upload, long Download, long Total, DateTimeOffset? Expires, double? Interval,
+        string? Support = null, string? WebPage = null, string? Announce = null, string? Fallback = null);
 
     internal static void SaveReserve(string folder, string url, string body, SubscriptionInfo? info = null)
     {
@@ -392,7 +506,9 @@ public static class SubscriptionPool
 
             if (info is not null)
             {
-                var meta = new ReserveMeta(info.Title, info.UploadBytes, info.DownloadBytes, info.TotalBytes, info.ExpiresAt, info.UpdateIntervalHours);
+                var meta = new ReserveMeta(
+                    info.Title, info.UploadBytes, info.DownloadBytes, info.TotalBytes, info.ExpiresAt, info.UpdateIntervalHours,
+                    info.SupportUrl, info.WebPageUrl, info.Announce, info.FallbackUrl);
                 File.WriteAllText(path + ".meta", System.Text.Json.JsonSerializer.Serialize(meta), new UTF8Encoding(false));
             }
 
@@ -405,6 +521,36 @@ public static class SubscriptionPool
         catch (Exception)
         {
             // Запас — страховка, а не условие работы.
+        }
+    }
+
+    /// <summary>
+    /// Запас подписки — под новым адресом, когда поставщик её перенёс (<c>new-url</c>).
+    /// </summary>
+    /// <remarks>
+    /// Запас лежит под отпечатком ссылки: без копии новая ссылка начинала бы
+    /// с пустого места, и первый же отказ новой панели оставил бы без серверов.
+    /// Старый запас уберёт обычная уборка — его ссылки в книге больше нет.
+    /// Копия хранит время файла, и свежесть запаса не врёт.
+    /// </remarks>
+    public static void MoveReserve(string oldUrl, string newUrl, string? reserveDirectory = null)
+    {
+        var folder = reserveDirectory ?? DefaultReserveDirectory;
+
+        try
+        {
+            var from = ReservePath(folder, oldUrl);
+            var to = ReservePath(folder, newUrl);
+
+            if (File.Exists(from + ".meta"))
+                File.Copy(from + ".meta", to + ".meta", overwrite: true);
+
+            if (File.Exists(from))
+                File.Copy(from, to, overwrite: true);
+        }
+        catch (Exception)
+        {
+            // Запас — страховка: новая ссылка прочитается и без него.
         }
     }
 
@@ -452,6 +598,10 @@ public static class SubscriptionPool
                 TotalBytes = meta?.Total ?? 0,
                 ExpiresAt = meta?.Expires,
                 UpdateIntervalHours = meta?.Interval,
+                SupportUrl = meta?.Support,
+                WebPageUrl = meta?.WebPage,
+                Announce = meta?.Announce,
+                FallbackUrl = meta?.Fallback,
             };
 
             return (info, File.GetLastWriteTime(path));

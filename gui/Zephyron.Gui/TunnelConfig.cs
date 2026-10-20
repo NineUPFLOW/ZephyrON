@@ -9,7 +9,7 @@ using Zephyron.Zapret;
 namespace Zephyron.Gui;
 
 /// <summary>Чем закончилась сборка конфига.</summary>
-internal sealed record BuildOutcome(bool Ok, string Message);
+internal sealed record BuildOutcome(bool Ok, string Message, string? Warning = null);
 
 /// <summary>
 /// Собирает конфиг туннеля из настроек, правил и подписки.
@@ -50,6 +50,10 @@ internal static class TunnelConfig
 
         try
         {
+            var requestedDns = settings;
+            var routerDns = RouterDnsConnection.Resolve(settings);
+            settings = routerDns.Settings;
+            if (routerDns.Warning is not null) Journal.Write("DNS", routerDns.Warning);
             var (ruleSet, zapretRoot) = LoadRules(settings);
 
             // WARP и подписки — одно из двух (владелец, 01.10; Warp.TunnelExits).
@@ -57,6 +61,7 @@ internal static class TunnelConfig
             // запуск не ждёт панелей, которые всё равно не понадобятся.
             IReadOnlyList<ProxyServer> fromSubscription = [];
             int sourceCount = 0, keyCount = 0, reserved = 0;
+            IReadOnlyList<PoolPart> deferred = [];
 
             if (!settings.WarpEnabled)
             {
@@ -72,8 +77,11 @@ internal static class TunnelConfig
                 if (sources.Count == 0 && !string.IsNullOrWhiteSpace(settings.SubscriptionUrl))
                     sources.Add(new PoolSource("Основная", settings.SubscriptionUrl));
 
-                // Отдельные ключи — последним источником пула (0.9.0).
-                var pool = await SubscriptionPool.BuildAsync(sources, cancellationToken, keys: book.PoolKeys);
+                // Отдельные ключи — последним источником пула (0.9.0). Панели
+                // с запасом моложе суток запуск не ждёт — их спросят после
+                // (SubscriptionPool.StartFromReserveFor, SubscriptionRecheck).
+                var pool = await SubscriptionPool.BuildAsync(sources, cancellationToken, keys: book.PoolKeys, deferPanels: true);
+                deferred = pool.Parts.Where(p => p.Deferred).ToList();
                 fromSubscription = pool.Servers;
                 sourceCount = sources.Count;
                 keyCount = book.PoolKeys.Count;
@@ -88,6 +96,14 @@ internal static class TunnelConfig
                         + string.Join("; ", pool.Parts.Select(p => $"«{p.Source.Name}» — {p.Error ?? "пусто"}")) + ".");
                 }
 
+                // Что поставщик сказал заголовками (15.10): перенёс подписку —
+                // ссылка в книге новая; срок кончается — напомнить, раз в сутки.
+                foreach (var part in pool.Parts.Where(p => p.Info is not null))
+                {
+                    SubscriptionBook.Follow(book, part.Source.Url, part.Info!.NewUrl);
+                    SubscriptionNotices.RemindExpiry(part.Source.Name, part.Source.Url, part.Info);
+                }
+
                 // Кто пришёл из запаса — в журнал: без этого «сервер из вчерашнего
                 // списка» было бы нечем объяснить.
                 foreach (var part in pool.Parts.Where(p => p.FromReserve || p.Error is not null))
@@ -95,6 +111,12 @@ internal static class TunnelConfig
                     Journal.Write("подписка", part.FromReserve
                         ? $"«{part.Source.Name}» не ответила — серверы из запаса от {part.ReserveAt:dd.MM HH:mm}"
                         : $"«{part.Source.Name}» не прочиталась и запаса нет: {part.Error}");
+                }
+
+                foreach (var part in deferred)
+                {
+                    Journal.Write("подписка",
+                        $"«{part.Source.Name}»: запуск из запаса от {part.ReserveAt:dd.MM HH:mm}, панель спрошу после запуска");
                 }
             }
 
@@ -125,8 +147,15 @@ internal static class TunnelConfig
             // и тогда пусть движок перебирает всех. В списке вкладки мёртвые
             // видны по-прежнему; удачный замер вернёт сервер со следующим
             // запуском.
+            //
+            // Так же закреплённые в пулах и пул, мёртвый целиком (идеи №6, 19.10):
+            // выброшенный пул без серверов исчез бы из конфига, и его маршруты
+            // молча ушли бы в пул по умолчанию — даже когда человек велел ждать.
+            var keep = ServerPools.KeptDespiteDeath(settings.Pools, servers.Select(s => s.Tag), dead);
+
             var alive = servers
-                .Where(s => !dead.Contains(s.Tag) || s.Tag == Warp.PreferredExit(settings) || s.IsSelfRegistering)
+                .Where(s => !dead.Contains(s.Tag) || s.Tag == Warp.PreferredExit(settings) || s.IsSelfRegistering
+                    || keep.Contains(s.Tag))
                 .ToList();
 
             int dropped = servers.Count - alive.Count;
@@ -183,20 +212,27 @@ internal static class TunnelConfig
             {
                 Scope = narrow ? TunnelScope.ProxyOnly : TunnelScope.Everything,
                 DnsServerAddresses = narrow ? SystemResolvers.Discover() : Array.Empty<string>(),
-                DnsServer = settings.DnsServer,
+                DnsServer = settings.UseRouterDns ? settings.RouterDnsAddress : settings.DnsServer,
+                DnsServerType = settings.UseRouterDns ? "udp" : "https",
+                RouterDns = settings.UseRouterDns,
+                RouterDnsInterface = routerDns.Interface?.Name,
 
                 // Имя сертификата и путь — у провайдера из списка выбора.
                 // Адрес, вписанный руками, идёт как прежде: без имени.
                 DnsServerName = DnsSurvey.ByAddress(settings.DnsServer)?.TlsName,
                 DnsServerPath = DnsSurvey.ByAddress(settings.DnsServer)?.DohPath,
-                DnsThroughTunnel = settings.DnsVia == DnsRoute.Tunnel,
-                DnsViaAuto = settings.DnsVia == DnsRoute.Auto,
+                DnsThroughTunnel = !settings.UseRouterDns && settings.DnsVia == DnsRoute.Tunnel,
+                DnsViaAuto = !settings.UseRouterDns && settings.DnsVia == DnsRoute.Auto,
 
                 // Все подписки из книги, а не одна действующая: переключаются
                 // на другую как раз тогда, когда выход текущей лёг.
                 PanelHosts = SubscriptionHosts.From(
                     [settings.SubscriptionUrl, .. SubscriptionBook.Load().Entries.Select(e => e.Url)]),
                 PreferredServerTag = Warp.PreferredExit(settings),
+
+                // При WARP подписки на паузе, и пулам вести некуда — их маршруты
+                // идут в пул по умолчанию, то есть в WARP.
+                Pools = settings.WarpEnabled ? [] : settings.Pools,
 
                 // «Игнорировать исключения» сюда больше не передаётся:
                 // с 23.09 она отменяет все прямые правила, а не одно
@@ -251,6 +287,7 @@ internal static class TunnelConfig
             });
 
             SingBoxConfigCompiler.WriteToFile(settings.ProxyConfigPath, result.Json);
+            RouterDnsBuildState.Save(settings.ProxyConfigPath, requestedDns, routerDns.Warning);
 
             var note = settings.WarpEnabled
                 ? "Конфиг собран: туннель через WARP, подписки на паузе"
@@ -272,7 +309,11 @@ internal static class TunnelConfig
             if (result.SkippedServers.Count > 0)
                 note += $", {result.SkippedServers.Count} пропущено";
 
-            return new BuildOutcome(true, note + ".");
+            // Не ждём: запуск идёт следом и не должен стоять за панелью.
+            if (deferred.Count > 0)
+                _ = SubscriptionRecheck.RunAsync(deferred);
+
+            return new BuildOutcome(true, note + ".", routerDns.Warning);
         }
         catch (Exception ex)
         {
@@ -292,6 +333,10 @@ internal static class TunnelConfig
     {
         try
         {
+            var requestedDns = settings;
+            var routerDns = RouterDnsConnection.Resolve(settings);
+            settings = routerDns.Settings;
+            if (routerDns.Warning is not null) Journal.Write("DNS", routerDns.Warning);
             var resolvers = SystemResolvers.Discover();
 
             // Без адресов резолверов движку нечего ловить: TUN поднялся бы
@@ -300,11 +345,14 @@ internal static class TunnelConfig
                 return new BuildOutcome(false, "DNS через движок не поднят: резолверы Windows не нашлись.");
 
             var addresses = AddressOverrides.Merge(new Dictionary<string, string>(), AddressOverrides.Load());
-            var result = DnsEngine.Compile(settings, resolvers, addresses, EngineKeys.Generate());
+            var result = DnsEngine.Compile(settings, resolvers, addresses, EngineKeys.Generate(), routerDns.Interface?.Name);
 
             SingBoxConfigCompiler.WriteToFile(settings.ProxyConfigPath, result.Json);
+            RouterDnsBuildState.Save(settings.ProxyConfigPath, requestedDns, routerDns.Warning);
 
-            return new BuildOutcome(true, $"DNS через движок: запросы Windows к {string.Join(", ", resolvers)} уходят на {settings.DnsServer} по DoH.");
+            return new BuildOutcome(true, settings.UseRouterDns
+                ? $"DNS через движок: UDP/53 к роутеру {settings.RouterDnsAddress} через LAN."
+                : $"DNS через движок: запросы Windows к {string.Join(", ", resolvers)} уходят на {settings.DnsServer} по DoH.", routerDns.Warning);
         }
         catch (Exception ex)
         {

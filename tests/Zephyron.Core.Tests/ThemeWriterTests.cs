@@ -52,11 +52,14 @@ public sealed class ThemeWriterTests : IDisposable
         {
             Name = "Фиолетовая ночь",
             Colors = Dark(),
-            Font = "Bahnschrift",
+            Font = "Comfortaa",
             BackgroundSource = image,
             Fit = BackgroundFit.Contain,
             Dim = 0.65,
             Blur = 30,
+            HomeX = 0.86,
+            HomeY = 0.5,
+            HomeSize = 0.8,
         }, root: _root);
 
         var load = ThemeLoader.Load(id, _root);
@@ -67,10 +70,13 @@ public sealed class ThemeWriterTests : IDisposable
         Assert.Equal("Фиолетовая ночь", theme.Name);
         Assert.Equal("#A01EEC", theme[ThemeSlots.AccentFill].ToString());
         Assert.Equal("#99161B22", theme[ThemeSlots.Surface].ToString());
-        Assert.Equal("Bahnschrift", theme.Fonts.Display);
-        Assert.Equal("Bahnschrift", theme.Fonts.Ui);
+        Assert.Equal("Comfortaa", theme.Fonts.Display);
+        Assert.Equal("Comfortaa", theme.Fonts.Ui);
         Assert.Equal(BackgroundFit.Contain, theme.Background!.Fit);
         Assert.Equal(0.65, theme.Background.Dim);
+        Assert.Equal(0.86, theme.Background.HomeX);
+        Assert.Equal(0.5, theme.Background.HomeY);
+        Assert.Equal(0.8, theme.Background.HomeSize);
         Assert.EndsWith("background.jpg", theme.Background.Image);
         Assert.False(theme.HomeFullWidth);
     }

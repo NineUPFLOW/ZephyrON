@@ -67,6 +67,8 @@ public partial class TunnelSettingsWindow : Window
     private void Show(AppSettings settings)
     {
         var engines = settings.Engines;
+        Word(RefreshNoLiveWord, settings.RefreshSubscriptionWhenNoLiveExits);
+        RefreshNoLive.IsChecked = settings.RefreshSubscriptionWhenNoLiveExits;
 
         Word(RussianWord, engines.IgnoreExclusions);
         Russian.IsChecked = engines.IgnoreExclusions;
@@ -112,6 +114,15 @@ public partial class TunnelSettingsWindow : Window
             : settings.ReplaceSilentServer
                 ? $"Пока «{settings.PreferredServer}» молчит, трафик пойдёт через другой сервер."
                 : $"Пока «{settings.PreferredServer}» молчит, туннель ждёт его.";
+
+        Word(DeadPoolWord, settings.DeadPoolToDefault);
+        DeadPool.IsChecked = settings.DeadPoolToDefault;
+
+        DeadPoolLine.Text = settings.Pools.Count == 0
+            ? "Своих пулов пока нет — все серверы в пуле по умолчанию."
+            : settings.DeadPoolToDefault
+                ? "Маршруты молчащего пула пойдут через любые серверы."
+                : "Маршруты молчащего пула ждут его и не открываются.";
 
         Word(BypassWord, settings.BypassWhenTunnelDead);
         Bypass.IsChecked = settings.BypassWhenTunnelDead;
@@ -280,6 +291,12 @@ public partial class TunnelSettingsWindow : Window
                 ? "Выбранному серверу будет искаться замена, пока он молчит."
                 : "Выбранный сервер не подменяется: молчит — туннель ждёт его.");
 
+    private void OnDeadPool(object sender, RoutedEventArgs e) =>
+        Save(s => s with { DeadPoolToDefault = DeadPool.IsChecked == true },
+            DeadPool.IsChecked == true
+                ? "Молчащий пул уведёт свои маршруты в пул по умолчанию."
+                : "Молчащий пул ждёт: его маршруты не открываются, пока он молчит.");
+
     private void OnVerify(object sender, RoutedEventArgs e)
     {
         bool on = Verify.IsChecked == true;
@@ -395,6 +412,18 @@ public partial class TunnelSettingsWindow : Window
         {
             Status.Text = "Не удалось записать: " + ex.GetBaseException().Message;
         }
+    }
+
+    private void OnRefreshNoLive(object sender, RoutedEventArgs e)
+    {
+        bool on = RefreshNoLive.IsChecked == true;
+
+        Word(RefreshNoLiveWord, on);
+
+        Save(s => s with { RefreshSubscriptionWhenNoLiveExits = on },
+            on
+                ? "Когда живых серверов не останется, подписка перечитается сама — не чаще раза в 30 минут."
+                : "Подписка перечитывается как прежде: при запуске движков, во вкладке VPN и кнопкой «Обновить».");
     }
 
     private void OnClose(object sender, RoutedEventArgs e) => Close();

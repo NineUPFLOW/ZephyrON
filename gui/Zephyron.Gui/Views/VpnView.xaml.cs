@@ -88,6 +88,14 @@ public sealed record ServerRow(
     public Visibility ChosenShown => CanChoose ? Visibility.Collapsed : Visibility.Visible;
 
     public Visibility ChooseShown => CanChoose ? Visibility.Visible : Visibility.Collapsed;
+
+    /// <summary>
+    /// Строка в папке пула (<see cref="ServerPool.Id"/>); <c>null</c> — в папке подписки.
+    /// </summary>
+    /// <remarks>
+    /// В пуле «Выбрать» закрепляет сервер в этом пуле, а не в пуле по умолчанию.
+    /// </remarks>
+    public string? PoolId { get; init; }
 }
 
 /// <summary>Плитка быстрой смены сервера (макет владельца 01.10); тег <c>null</c> — «Авто».</summary>
@@ -150,6 +158,61 @@ public sealed class SubRow : System.ComponentModel.INotifyPropertyChanged
     public bool Active { get; set; }
 
     public string Detail { get; set; } = "читаю…";
+
+    /// <summary>
+    /// Что поставщик шлёт заголовками сверх квоты и срока (15.10, как в Happ):
+    /// поддержка, страница подписки, объявление.
+    /// </summary>
+    public string? SupportUrl { get; set; }
+
+    public string? WebPageUrl { get; set; }
+
+    public string? Announce { get; set; }
+
+    /// <summary>Срок кончается или кончился — строкой цвета предупреждения.</summary>
+    public string? Warning { get; set; }
+
+    public Visibility SupportShown => SupportUrl is null ? Visibility.Collapsed : Visibility.Visible;
+
+    public Visibility WebPageShown => WebPageUrl is null ? Visibility.Collapsed : Visibility.Visible;
+
+    public Visibility AnnounceShown => Announce is null ? Visibility.Collapsed : Visibility.Visible;
+
+    public Visibility WarningShown => Warning is null ? Visibility.Collapsed : Visibility.Visible;
+
+    /// <summary>
+    /// Полоска расхода, как в Happ (владелец 19.10), и восклицательный знак
+    /// при слишком быстром темпе (<see cref="SubscriptionUsage"/>); <c>null</c> —
+    /// подписка не прочитана или это папка ключей: у них квоты нет.
+    /// </summary>
+    public UsageForecast? Usage { get; set; }
+
+    public Visibility UsageShown => Usage is null ? Visibility.Collapsed : Visibility.Visible;
+
+    public string UsageLabel => Usage?.Label ?? string.Empty;
+
+    public string UsageExpires => Usage?.Expires ?? string.Empty;
+
+    /// <summary>Израсходованная часть полоски; без лимита — пустая, как у Happ.</summary>
+    public GridLength UsedStar => new(Usage?.Fraction ?? 0, GridUnitType.Star);
+
+    public GridLength LeftStar => new(1 - (Usage?.Fraction ?? 0), GridUnitType.Star);
+
+    public Brush UsageFill => (Brush)Application.Current.FindResource(Usage?.Warning is null ? "AccentFill" : "WarnFill");
+
+    public string? PaceWarning => Usage?.Warning;
+
+    public Visibility PaceShown => Usage?.Warning is null ? Visibility.Collapsed : Visibility.Visible;
+
+    public string UsageTip => Usage is not { } usage
+        ? string.Empty
+        : $"Израсходовано: {usage.Label}"
+            + (usage.PerDay is { } perDay ? $"\nЗа последнюю неделю — {SubscriptionUsage.Size(perDay)} в сутки" : "\nТемп появится, когда накопится история хотя бы за полсуток")
+            + (usage.Warning is { } warning ? "\n\n" + warning : string.Empty);
+
+    public string SupportTip => SupportUrl is { } url && url.Contains("t.me/", StringComparison.OrdinalIgnoreCase)
+        ? "Поддержка поставщика в Telegram"
+        : "Поддержка поставщика";
 
     public IReadOnlyList<ServerRow> Servers { get; set; } = [];
 
@@ -851,13 +914,28 @@ public partial class VpnView : UserControl
             if (skipped > 0)
                 parts.Add($"ещё {skipped} sing-box не поддерживает");
 
-            parts.Add(info.RemainingBytes is { } left
-                ? Size(left)
-                : info.TotalBytes > 0 ? "квота кончилась" : "без ограничения");
+            // Квота и срок — полоской под именем (19.10, как в Happ), а не словами
+            // в этой строке. Темп — по истории расхода, которую пишет каждое
+            // чтение панели, и окном, и надзором.
+            row.Usage = SubscriptionUsage.Forecast(info, SubscriptionUsage.Samples(row.Entry.Url), DateTimeOffset.Now);
 
-            parts.Add(info.ExpiresAt is { } until
-                ? $"{(until - DateTimeOffset.Now).Days} дн"
-                : "без срока");
+            // Ключи (KeyRing) заголовков не шлют: у них этих полей нет и не будет.
+            row.SupportUrl = info.SupportUrl;
+            row.WebPageUrl = info.WebPageUrl;
+            row.Announce = info.Announce;
+            row.Warning = info.ExpiryWarningText(DateTimeOffset.Now);
+
+            // Поставщик перенёс подписку — ссылка в книге новая, и в этой
+            // книге тоже: вкладка держит свою и записала бы старую обратно.
+            if (read.Source != SubscriptionReadSource.Reserve)
+            {
+                SubscriptionBook.Follow(_book, row.Entry.Url, info.NewUrl);
+                SubscriptionNotices.RemindExpiry(row.Entry.Name, row.Entry.Url, info);
+            }
+
+            // Основная панель молчала, а запасной адрес поставщика ответил.
+            if (read.Source == SubscriptionReadSource.Panel && read.Error is { } rescued)
+                parts.Add(rescued);
 
             // Пусто, а панель ответила — причина называется. Молча выходило
             // «0 серверов · 14 дн» (issue #3), и понять, что сломан разбор,
@@ -893,6 +971,7 @@ public partial class VpnView : UserControl
             row.Pooled = [];
             row.AsGiven = [];
             row.Servers = [];
+            row.Usage = null;
 
             // Срок HttpClient приходит той же отменой, что и наша, и прежде
             // читался как «The operation was canceled» — неотличимо от
@@ -1132,7 +1211,18 @@ public partial class VpnView : UserControl
     /// </remarks>
     private void ShowPage()
     {
-        var items = new List<object> { TopBlock };
+        var items = new List<object> { TopBlock, PoolsBlock };
+
+        foreach (var pool in _poolRows)
+        {
+            pool.Fade = _paused ? 0.55 : 1;
+            items.Add(pool);
+
+            if (pool.Open)
+                items.AddRange(pool.Servers);
+        }
+
+        items.Add(SubsBlock);
 
         foreach (var row in _rows)
         {
@@ -1157,12 +1247,26 @@ public partial class VpnView : UserControl
 
         for (int i = 0; i < items.Count; i++)
         {
+            // Элемент окна (плашки пулов и подписок, подпись) в списке может
+            // стоять лишь в одном месте: два места — одно дитя у двух
+            // родителей, и список падает (19.10: свернул папку пула — плашка
+            // подписок встала выше, ещё не уйдя снизу). Сперва вынимаем его
+            // со старого места — оно всегда дальше: всё до i уже совпало.
+            if (items[i] is UIElement element
+                && (i >= _items.Count || !ReferenceEquals(_items[i], element))
+                && _items.IndexOf(element) is var old and >= 0)
+            {
+                _items.RemoveAt(old);
+            }
+
             if (i >= _items.Count)
                 _items.Add(items[i]);
             else if (!ReferenceEquals(_items[i], items[i]))
                 _items[i] = items[i];
             else if (items[i] is SubRow folder)
                 folder.Refresh();
+            else if (items[i] is PoolRow pool)
+                pool.Refresh();
         }
 
         while (_items.Count > items.Count)
@@ -1212,10 +1316,14 @@ public partial class VpnView : UserControl
 
     private void Redraw()
     {
+        var settings = AppSettings.Load(AppSettings.DefaultPath);
+
+        // Пулы — из тех же строк подписок, уже раскрашенных.
+        ShowPools(settings);
         ShowPage();
 
         // Лента и сводка строятся из тех же строк — вместе с ними.
-        ShowQuick(AppSettings.Load(AppSettings.DefaultPath));
+        ShowQuick(settings);
         ShowSummary();
 
         // Надпись — по тому, что раскрыто, а не по прошлому нажатию: вкладка
@@ -1899,6 +2007,34 @@ public partial class VpnView : UserControl
     }
 
     /// <summary>⟳ у подписки: перечитать только её.</summary>
+    /// <summary>Кнопка «Поддержка» у подписки — ссылка из её же заголовка (проверена: только http/https).</summary>
+    private void OnSupport(object sender, RoutedEventArgs e) =>
+        OpenProviderLink(sender, e, row => row.SupportUrl);
+
+    /// <summary>Кнопка «Сайт подписки»: продлить, сменить тариф.</summary>
+    private void OnWebPage(object sender, RoutedEventArgs e) =>
+        OpenProviderLink(sender, e, row => row.WebPageUrl);
+
+    private void OpenProviderLink(object sender, RoutedEventArgs e, Func<SubRow, string?> pick)
+    {
+        // Кнопка внутри кнопки папки — без этого щелчок раскрыл бы и папку.
+        e.Handled = true;
+
+        if (sender is not FrameworkElement { Tag: string name }
+            || _rows.FirstOrDefault(r => r.Entry.Name == name) is not { } row
+            || pick(row) is not { } url)
+            return;
+
+        try
+        {
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo { FileName = url, UseShellExecute = true });
+        }
+        catch (Exception ex)
+        {
+            Status.Text = "Ссылку открыть не вышло: " + ex.GetBaseException().Message;
+        }
+    }
+
     private async void OnRefreshOne(object sender, RoutedEventArgs e)
     {
         e.Handled = true;
@@ -2277,6 +2413,8 @@ public partial class VpnView : UserControl
             }
         }));
 
+        AddPoolItems(menu, anchor.DataContext as ServerRow ?? server);
+
         if (server.RemoveShown == Visibility.Visible)
         {
             menu.Items.Add(new Separator { Style = (Style)FindResource("MenuLine") });
@@ -2625,42 +2763,59 @@ public partial class VpnView : UserControl
             Choose(row);
     }
 
+    /// <summary>
+    /// Тег сервера у движка; подписку вне работы при этом ставит в работу.
+    /// </summary>
+    /// <remarks>
+    /// Сервер из подписки вне работы — ставим её в работу, иначе конфиг
+    /// собрался бы без него. Метки пула от этого могут поменяться
+    /// (совпадёт имя с сервером соседней), так что тег берём заново —
+    /// по месту сервера в его подписке. Нужно и выбору, и пулу серверов.
+    /// </remarks>
+    private string IntoWork(ServerRow row, AppSettings settings, out bool switched)
+    {
+        // Выходы WARP подписок не касаются: они и так в пуле.
+        var owner = row.Owner == WarpOwner
+            ? null
+            : _rows.FirstOrDefault(r => r.Entry.Name == row.Owner);
+
+        var tag = row.Tag;
+        switched = owner is not null && !owner.Active;
+
+        if (switched)
+        {
+            int index = owner!.Pooled.ToList().FindIndex(s => s.Tag == row.Tag);
+
+            if (owner.IsKeys)
+                SubscriptionBook.SaveKeys(_book.Keys, true);
+            else
+                SubscriptionBook.SetWorking(owner.Entry.Url, true);
+
+            _book = SubscriptionBook.Load();
+            owner.Entry.InPool = true;
+            owner.Active = true;
+
+            ApplyPool(settings);
+
+            if (index >= 0)
+                tag = owner.Pooled[index].Tag;
+        }
+
+        return tag;
+    }
+
     private void Choose(ServerRow row)
     {
+        if (row.PoolId is { } pool)
+        {
+            PinInPool(pool, row);
+            return;
+        }
+
         try
         {
             var settings = AppSettings.Load(AppSettings.DefaultPath);
-
-            // Выходы WARP подписок не касаются: они и так в пуле.
-            var owner = row.Owner == WarpOwner
-                ? null
-                : _rows.FirstOrDefault(r => r.Entry.Name == row.Owner);
-
-            var tag = row.Tag;
-            bool switched = owner is not null && !owner.Active;
-
-            // Сервер из подписки вне работы — ставим её в работу, иначе конфиг
-            // собрался бы без него. Метки пула от этого могут поменяться
-            // (совпадёт имя с сервером соседней), так что тег выбранного
-            // берём заново — по месту сервера в его подписке.
-            if (switched)
-            {
-                int index = owner!.Pooled.ToList().FindIndex(s => s.Tag == row.Tag);
-
-                if (owner.IsKeys)
-                    SubscriptionBook.SaveKeys(_book.Keys, true);
-                else
-                    SubscriptionBook.SetWorking(owner.Entry.Url, true);
-
-                _book = SubscriptionBook.Load();
-                owner.Entry.InPool = true;
-                owner.Active = true;
-
-                ApplyPool(settings);
-
-                if (index >= 0)
-                    tag = owner.Pooled[index].Tag;
-            }
+            var tag = IntoWork(row, settings, out bool switched);
 
             (AppSettings.Load(AppSettings.DefaultPath) with { PreferredServer = tag })
                 .Save(AppSettings.DefaultPath);

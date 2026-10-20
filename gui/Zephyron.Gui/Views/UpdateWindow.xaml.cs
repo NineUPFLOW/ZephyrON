@@ -125,7 +125,7 @@ public partial class UpdateWindow : Window
     private void ShowReleases(IReadOnlyList<ReleaseInfo> releases)
     {
         _releases = releases
-            .OrderByDescending(r => Version.TryParse(r.Version, out var v) ? v : new Version(0, 0))
+            .OrderByDescending(r => r.Version, UpdateCheck.Order)
             .ToList();
 
         ShowTimeline(_releases);
@@ -750,6 +750,8 @@ public partial class UpdateWindow : Window
     private void OnBrowser(object sender, RoutedEventArgs e) => Open(UpdateNotice.PageOf(_latest));
 
     private void OnTelegram(object sender, RoutedEventArgs e) => Open(Telegram);
+
+    private void OnDonate(object sender, RoutedEventArgs e) => Open(Zephyron.Core.About.Support);
 
     private static void Open(string address)
     {
