@@ -1324,4 +1324,131 @@
         </Setter>
     </Style>
 
+    <!--
+        Навигация разделов — горизонтальная полоса сверху (Breeze Light,
+        референс главного окна). Прежний RailItem был таблеткой с заливкой
+        акцентом у выбранного; здесь выбранный помечен мягче: светлая
+        подложка акцента, тонкая его же рамка и цветная подпись. Полоса
+        из пяти залитых таблеток читалась бы как кнопки, а не как разделы.
+    -->
+    <Style x:Key="NavTab" TargetType="RadioButton">
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="Margin" Value="0,0,4,0" />
+        <Setter Property="ToolTip" Value="{Binding Content, RelativeSource={RelativeSource Self}}" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="RadioButton">
+                    <Grid>
+                        <!-- Мягкая подложка акцента: отдельным слоем, чтобы
+                             не заводить ещё один цвет темы ради одного
+                             состояния. -->
+                        <Border x:Name="Tint" CornerRadius="{StaticResource RMd}"
+                                Background="{DynamicResource Accent}" Opacity="0" />
+                        <Border x:Name="Shape" Background="Transparent"
+                                CornerRadius="{StaticResource RMd}"
+                                BorderThickness="{StaticResource Stroke}" BorderBrush="Transparent"
+                                Padding="12,8">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock x:Name="Glyph"
+                                           Text="{Binding (local:MenuIcon.Glyph), RelativeSource={RelativeSource TemplatedParent}}"
+                                           FontFamily="{DynamicResource IconFont}" FontSize="15"
+                                           Width="17" Margin="0,0,9,0" TextAlignment="Center"
+                                           VerticalAlignment="Center"
+                                           Foreground="{DynamicResource Muted}" />
+                                <TextBlock x:Name="Label" Text="{TemplateBinding Content}"
+                                           Foreground="{DynamicResource Muted}" FontSize="13"
+                                           VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                            </StackPanel>
+                        </Border>
+                        <!-- Точка «есть новое» (RailBadge.cs). -->
+                        <Ellipse x:Name="Badge" Width="7" Height="7" Margin="0,6,6,0"
+                                 HorizontalAlignment="Right" VerticalAlignment="Top"
+                                 Fill="{DynamicResource Accent}" Visibility="Collapsed" />
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="local:RailBadge.Shown" Value="True">
+                            <Setter TargetName="Badge" Property="Visibility" Value="Visible" />
+                        </Trigger>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Tint" Property="Opacity" Value="0.07" />
+                            <Setter TargetName="Label" Property="Foreground" Value="{DynamicResource Text}" />
+                            <Setter TargetName="Glyph" Property="Foreground" Value="{DynamicResource Text}" />
+                        </Trigger>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="Tint" Property="Opacity" Value="0.13" />
+                            <Setter TargetName="Shape" Property="BorderBrush" Value="{DynamicResource Accent}" />
+                            <Setter TargetName="Label" Property="Foreground" Value="{DynamicResource Accent}" />
+                            <Setter TargetName="Glyph" Property="Foreground" Value="{DynamicResource Accent}" />
+                            <Setter TargetName="Label" Property="FontWeight" Value="SemiBold" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Opacity" Value="0.5" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!--
+        «Ещё» — кнопка выпадающего списка разделов. Собрана как NavTab, чтобы
+        стоять с ним в одну линию, но открывает меню, а не выбирается.
+    -->
+    <Style x:Key="NavMore" TargetType="Button" BasedOn="{StaticResource NavTab}">
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Grid>
+                        <Border x:Name="Shape" Background="Transparent"
+                                CornerRadius="{StaticResource RMd}"
+                                BorderThickness="{StaticResource Stroke}" BorderBrush="Transparent"
+                                Padding="12,8">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="&#xE712;" FontFamily="{DynamicResource IconFont}" FontSize="15"
+                                           Width="17" Margin="0,0,9,0" TextAlignment="Center"
+                                           VerticalAlignment="Center" Foreground="{DynamicResource Muted}"
+                                           x:Name="Glyph" />
+                                <TextBlock Text="{TemplateBinding Content}" Foreground="{DynamicResource Muted}"
+                                           FontSize="13" VerticalAlignment="Center" x:Name="Label" />
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Shape" Property="Background" Value="{DynamicResource Raised}" />
+                            <Setter TargetName="Label" Property="Foreground" Value="{DynamicResource Text}" />
+                            <Setter TargetName="Glyph" Property="Foreground" Value="{DynamicResource Text}" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!--
+        Пункт выпадающего «Ещё»: значок, подпись, при наведении — подложка.
+        Обычное меню, а не таблетка: внутри списка выбор и наведение должны
+        читаться одинаково.
+    -->
+    <Style x:Key="NavMenuItem" TargetType="MenuItem">
+        <Setter Property="Foreground" Value="{DynamicResource Text}" />
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="MenuItem">
+                    <Border x:Name="Shape" Background="Transparent" CornerRadius="{StaticResource RSm}"
+                            Padding="10,9" Margin="4,1">
+                        <ContentPresenter ContentSource="Header" VerticalAlignment="Center" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsHighlighted" Value="True">
+                            <Setter TargetName="Shape" Property="Background" Value="{DynamicResource Raised}" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
 </ResourceDictionary>

@@ -5,6 +5,8 @@ using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Interop;
+using System.Windows.Media;
+using System.Windows.Media.Animation;
 using System.Windows.Threading;
 using Zephyron.Core;
 using Zephyron.Core.Updates;
@@ -29,11 +31,19 @@ public partial class MainWindow : Window
         Closed += (_, _) => BackdropVideo.Detach(BackdropLayer);
 
         VersionLabel.Text = "версия " + Version();
+        BrandVersion.Text = "версия " + Version();
         Motion.Mark(Mark);
         SizeChanged += (_, _) => FitRail();
         Loaded += (_, _) => FitRail();
         ShowOnboardingIfNeeded();
         Loaded += (_, _) => ShowGreetingIfDue();
+
+        // Левая панель — единственное место, где видно состояние связи.
+        // Подписка на общий опрос; своего таймера панель не заводит.
+        Loaded += (_, _) => ConnectionStatus.Watch();
+        Unloaded += (_, _) => ConnectionStatus.Unwatch();
+        ConnectionStatus.Changed += OnConnection;
+        Closed += (_, _) => ConnectionStatus.Changed -= OnConnection;
 
         SourceInitialized += (_, _) =>
         {
@@ -118,32 +128,28 @@ public partial class MainWindow : Window
         }
     }
 
-    /// <summary>Точка у «Главной», пока новая версия не поставлена: обновление живёт там.</summary>
+    /// <summary>Точка у значка обновления, пока новая версия не поставлена.</summary>
     private void ShowUpdateBadge() =>
-        RailBadge.SetShown(RailStatus, UpdateNotice.Available is not null);
+        UpdateBell.Visibility = UpdateNotice.Available is not null ? Visibility.Visible : Visibility.Collapsed;
 
     /// <summary>
-    /// Ужимает боковое меню на узком окне: подписи уходят, остаются значки.
+    /// Ужимает левую панель на узком окне.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// Разделов четырнадцать, и самое длинное название — «Проверка блокировок».
-    /// Полное меню занимает 252 точки; на окне уже примерно 900 точки поле
-    /// раздела становится уже рабочего, и карточки в нём начинают переноситься
-    /// на каждой строке. Тогда меню переходит в узкий режим: подпись пункта
-    /// прячется (RailCompact), название остаётся во всплывающей подсказке.
+    /// Полная панель занимает 252 точки; на узком окне она съедала бы
+    /// половину рабочей области. Тогда панель переходит в узкий режим: описание
+    /// и подписи прячутся, остаются знак, состояние и кнопка — то, за чем
+    /// на панель и смотрят. Разделы при этом не исчезают: они в верхней
+    /// навигации, а не здесь.
     /// </para>
     /// <para>
-    /// Скрываем подписи, а не сами пункты: спрятать раздел значило бы лишить
-    /// человека доступа к нему, а на узком окне это ровно то, что меньше всего
-    /// нужно. Ширину колонки и знак с именем тоже ужимаем — иначе узкое меню
-    /// осталось бы широким.
+    /// ActualWidth — уже с учётом LayoutTransform (масштаб окна), поэтому
+    /// порог сравнивается с тем, что человек видит, а не с точками окна.
     /// </para>
     /// </remarks>
     private void FitRail()
     {
-        // ActualWidth — уже с учётом LayoutTransform (масштаб окна), поэтому
-        // порог сравнивается с тем, что человек видит, а не с точками окна.
         var compact = ActualWidth < 900;
 
         if (_railCompact == compact)
@@ -153,16 +159,218 @@ public partial class MainWindow : Window
 
         RailColumn.Width = new GridLength(Token(compact ? "RailNarrow" : "RailWidth"));
 
-        foreach (var item in Rail.Children.OfType<RadioButton>())
-            RailCompact.SetIs(item, compact);
-
         MarkText.Visibility = compact ? Visibility.Collapsed : Visibility.Visible;
-        RailGroupBreak.Visibility = compact ? Visibility.Collapsed : Visibility.Visible;
-        RailDivider.Margin = compact ? new Thickness(14, 10, 14, 8) : new Thickness(20, 12, 20, 10);
+        BrandBlurb.Visibility = compact ? Visibility.Collapsed : Visibility.Visible;
     }
 
-    /// <summary>Меню сейчас в узком режиме — чтобы не пересобирать его зря.</summary>
+    /// <summary>Панель сейчас в узком режиме — чтобы не пересобирать её зря.</summary>
     private bool _railCompact;
+
+    /// <summary>
+    /// Показывает состояние связи в левой панели.
+    /// </summary>
+    /// <remarks>
+    /// Панель — единственное место, где это видно, поэтому и кнопка запуска
+    /// здесь же. Значение берётся из общего состояния (ConnectionStatus),
+    /// а не читается своим опросом: два слова про одно состояние разошлись бы.
+    /// </remarks>
+    private void OnConnection(ConnectionSnapshot snapshot)
+    {
+        if (!Dispatcher.CheckAccess())
+        {
+            Dispatcher.InvokeAsync(() => OnConnection(snapshot));
+            return;
+        }
+
+        var (word, hint, colourKey) = ConnectionStatus.Overall(snapshot);
+
+        HostStateLine.Text = word;
+        HostStateHint.Text = hint;
+        HostFooter.Text = ConnectionStatus.Footer(snapshot);
+
+        Brush brush = ConnectionStatus.Brush(this, colourKey == "Warn" ? "WarnFill" : colourKey);
+        HostDot.Fill = brush;
+        HostStateBarFill.Fill = brush;
+
+        // Кнопка одна на месте: «Запустить» либо «Остановить». При запуске
+        // показан «Остановить» — тот же выбор, что был у карточки состояния:
+        // остановить можно и то, что ещё поднимается.
+        bool running = snapshot.Running || snapshot.Starting;
+        HostStartButton.Visibility = running ? Visibility.Collapsed : Visibility.Visible;
+        HostStopButton.Visibility = running ? Visibility.Visible : Visibility.Collapsed;
+
+        if (!running)
+        {
+            var settings = snapshot.Settings;
+            HostStartButton.IsEnabled = settings is null || settings.NeedsProxy || settings.NeedsDesync;
+        }
+
+        // Бегущая засечка — только при запуске и только когда анимации не
+        // выключены; иначе ход видно цветом полосы.
+        bool animating = snapshot.Starting && Motion.Enabled;
+        HostProgressMark.Visibility = animating ? Visibility.Visible : Visibility.Collapsed;
+
+        if (animating)
+        {
+            var span = HostStateBar.ActualWidth > 0 ? HostStateBar.ActualWidth : 210;
+
+            HostProgressShift.BeginAnimation(TranslateTransform.XProperty, new DoubleAnimation
+            {
+                From = -HostProgressMark.Width,
+                To = span,
+                Duration = new Duration(TimeSpan.FromSeconds(1.3)),
+                RepeatBehavior = RepeatBehavior.Forever,
+            });
+        }
+        else
+        {
+            HostProgressShift.BeginAnimation(TranslateTransform.XProperty, null);
+        }
+    }
+
+    /// <summary>
+    /// Собирает конфиг и поднимает движки — с кнопки в левой панели.
+    /// </summary>
+    /// <remarks>
+    /// Сборка идёт при каждом запуске, как в меню консоли. Без неё окно
+    /// поднимало движки с тем конфигом, что лежал на диске: смена сервера,
+    /// правки маршрутов и переключение режима показывались новыми, а до
+    /// туннеля не доходили, пока конфиг не соберут отдельно.
+    /// </remarks>
+    private async void OnHostStart(object sender, RoutedEventArgs e)
+    {
+        HostStartButton.IsEnabled = false;
+
+        var outcome = await EngineControl.StartAsync("кнопка «Запустить» в панели", CancellationToken.None);
+
+        HostStartButton.IsEnabled = true;
+
+        if (!outcome.Ok)
+        {
+            HostStateLine.Text = "Запустить не вышло";
+            HostStateHint.Text = outcome.Message;
+            ConnectionStatus.Refresh();
+            return;
+        }
+
+        // Прежде кнопки просто гасли на три секунды. Этого хватало, пока
+        // запуск был мгновенным; с проверкой прохода трафика он занимает
+        // десятки секунд, и кнопки оживали посреди подъёма, показывая
+        // «остановлено» у ещё запускающегося движка.
+        ConnectionStatus.BeginStarting();
+    }
+
+    private async void OnHostStop(object sender, RoutedEventArgs e)
+    {
+        ConnectionStatus.EndStarting();
+
+        HostStopButton.IsEnabled = false;
+        HostStateLine.Text = "Останавливаю…";
+
+        await EngineControl.StopAsync("кнопка «Остановить» в панели", CancellationToken.None);
+
+        HostStopButton.IsEnabled = true;
+        ConnectionStatus.Refresh();
+    }
+
+    /// <summary>Значок обновления в шапке — открывает окно об обновлении.</summary>
+    private void OnUpdateBell(object sender, RoutedEventArgs e)
+    {
+        if (UpdateNotice.Available is { } release)
+            ShowUpdateWindow(release);
+    }
+
+    /// <summary>Значок поддержки в шапке.</summary>
+    private void OnSupportHeart(object sender, RoutedEventArgs e) =>
+        OpenLink(About.Support);
+
+    /// <summary>
+    /// Открывает выпадающий список «Ещё» — разделы, не влезшие в верхнюю навигацию.
+    /// </summary>
+    /// <remarks>
+    /// Список строится по тем же данным, что и навигация (Tag, MenuIcon.Glyph),
+    /// и переход идёт общим <see cref="Open"/>: меню не показывает одно,
+    /// когда видно другое. Ни один раздел не потерян — редкие здесь.
+    /// </remarks>
+    private void OnMoreMenu(object sender, RoutedEventArgs e)
+    {
+        var menu = new ContextMenu
+        {
+            PlacementTarget = NavMore,
+            Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom,
+        };
+
+        foreach (var (tag, glyph, label) in MoreSections)
+        {
+            var row = new StackPanel { Orientation = Orientation.Horizontal };
+
+            row.Children.Add(new TextBlock
+            {
+                Text = glyph,
+                FontFamily = (FontFamily)FindResource("IconFont"),
+                FontSize = 15,
+                Width = 22,
+                Foreground = (Brush)FindResource("Muted"),
+                VerticalAlignment = VerticalAlignment.Center,
+            });
+
+            row.Children.Add(new TextBlock { Text = label, VerticalAlignment = VerticalAlignment.Center });
+
+            var item = new MenuItem { Header = row, Tag = tag, Style = (Style)FindResource("NavMenuItem") };
+            item.Click += (_, _) => Open(tag);
+            menu.Items.Add(item);
+        }
+
+        menu.IsOpen = true;
+    }
+
+    /// <summary>
+    /// Разделы в «Ещё»: те, что не уместились в верхнюю полосу.
+    /// </summary>
+    /// <remarks>
+    /// «Обслуживание и информация» — тот самый раздел «Ещё», что был в старом
+    /// меню (обслуживание, дополнительные переключатели, о программе). Он
+    /// не пропал: в референсе «Ещё» — это меню, и его собственная страница
+    /// открывается из этого меню первым пунктом.
+    /// </remarks>
+    private static readonly (string Tag, string Glyph, string Label)[] MoreSections =
+    [
+        ("more", "\uE713", "Обслуживание и информация"),
+        ("check", "\uE721", "Проверка блокировок"),
+        ("speed", "\uEC4A", "Замер скорости"),
+        ("dns", "\uE968", "DNS"),
+        ("hosts", "\uE8A5", "Файл hosts"),
+        ("watch", "\uE9D2", "Наблюдение"),
+        ("doctor", "\uE9D9", "Диагностика"),
+        ("look", "\uE790", "Оформление"),
+    ];
+
+    /// <summary>
+    /// Открывает раздел по имени из <c>Tag</c> пункта навигации — для быстрых
+    /// действий «Главной» и пунктов меню «Ещё».
+    /// </summary>
+    /// <remarks>
+    /// Отмечает пункт навигации, а не подменяет содержимое напрямую: переход
+    /// идёт тем же <see cref="OnSection"/>, и навигация не показывает одно,
+    /// когда видно другое. Если раздела нет в верхней полосе — он в «Ещё»,
+    /// и содержимое ставится там же, куда привёл бы его пункт.
+    /// </remarks>
+    public void Open(string section)
+    {
+        foreach (var item in Nav.Children.OfType<RadioButton>())
+        {
+            if (item.Tag as string == section)
+            {
+                item.IsChecked = true;
+                return;
+            }
+        }
+
+        // Раздел из «Ещё»: в полосе его нет — ставим содержимое напрямую,
+        // но «Ещё» подсвечиваем, чтобы выбор был виден.
+        if (Show(section))
+            NavMore.IsEnabled = true;
+    }
 
     /// <summary>
     /// Токен оформления по имени; если словаря нет — разумное значение.
@@ -409,6 +617,21 @@ public partial class MainWindow : Window
     /// заново на каждый заход строить незачем.
     /// </para>
     /// </remarks>
+    /// <summary>
+    /// Показывает раздел по имени.
+    /// </summary>
+    /// <remarks>
+    /// Каждый раз новый объект, а не сохранённый. Разделы читают состояние
+    /// системы — движки, подписку, hosts, — и оно меняется, пока окно открыто.
+    /// Возвращать сохранённый вид значило бы показывать снимок прошлого
+    /// захода, не сказав об этом.
+    /// <para>
+    /// Исключение — «Маршруты» (13.10, <see cref="RoutesView.Shared"/>): они
+    /// перечитывают всё при каждом показе и обновляют только изменившиеся
+    /// карточки, так что снимка прошлого захода не показывают, а сотню карточек
+    /// заново на каждый заход строить незачем.
+    /// </para>
+    /// </remarks>
     private void OnSection(object sender, RoutedEventArgs e)
     {
         // Отрабатывает и при разборе разметки, когда Section ещё не создан:
@@ -420,6 +643,19 @@ public partial class MainWindow : Window
         // задержка — создание раздела и есть частая её причина.
         UiStallWatch.Section = (sender as RadioButton)?.Content as string ?? name;
 
+        Show(name);
+    }
+
+    /// <summary>
+    /// Ставит содержимое по имени раздела. <c>false</c> — такого раздела нет.
+    /// </summary>
+    /// <remarks>
+    /// Общая часть <see cref="OnSection"/> и <see cref="Open"/>: и переход
+    /// по полосе, и переход из меню «Ещё» ставят раздел одним и тем же кодом,
+    /// так что разойтись они не могут.
+    /// </remarks>
+    private bool Show(string name)
+    {
         // Ушли из мастера в другой раздел — он закрыт, как «Пропустить».
         (Section.Content as OnboardingView)?.Leave();
 
@@ -437,36 +673,20 @@ public partial class MainWindow : Window
             "doctor" => new DoctorView(),
             "look" => new AppearanceView(),
             "more" => new MoreView(),
-            _ => new StatusView(),
+            "status" => new StatusView(),
+            _ => null,
         };
+
+        if (Section.Content is not FrameworkElement page)
+            return false;
 
         // «Маршруты» — без анимации (владелец, 28.09): список из сотни строк,
         // и его появление по частям только мешает искать.
-        if (name != "routes" && Section.Content is FrameworkElement page)
+        if (name != "routes")
             Motion.Page(page);
-    }
 
-    /// <summary>
-    /// Открывает раздел по имени из <c>Tag</c> пункта меню — для быстрых
-    /// действий «Главной».
-    /// </summary>
-    /// <remarks>
-    /// Отмечает пункт меню, а не подменяет содержимое напрямую: переход
-    /// идёт тем же <see cref="OnSection"/>, и меню не показывает одно,
-    /// когда видно другое.
-    /// </remarks>
-    public void Open(string section)
-    {
-        foreach (var item in Rail.Children.OfType<RadioButton>())
-        {
-            if (item.Tag as string == section)
-            {
-                item.IsChecked = true;
-                return;
-            }
-        }
+        return true;
     }
-
     /// <summary>Сколько уведомление висит, прежде чем уйти само.</summary>
     private static readonly TimeSpan ToastLife = TimeSpan.FromSeconds(14);
 

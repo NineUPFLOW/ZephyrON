@@ -3,7 +3,6 @@ using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
-using System.Windows.Media.Animation;
 using System.Windows.Threading;
 using Zephyron.Core;
 using Zephyron.Core.Diagnostics;
@@ -14,57 +13,31 @@ using Zephyron.Supervisor;
 
 namespace Zephyron.Gui.Views;
 
-/// <summary>Строка про один движок.</summary>
-/// <param name="Word">Отметка в карточке одним-двумя словами (EngineHealth.Word).</param>
-/// <param name="Detail">Строка под ней: причина надзора, когда движок не в порядке.</param>
-public sealed record EngineRow(string Name, string Word, string Detail, Brush Color, int? ProcessId = null);
-
-/// <summary>Предупреждение, которое стоит прочитать до запуска.</summary>
-public sealed record WarningRow(string Title, string Body);
-
 /// <summary>
-/// Состояние настройки и движков, плюс запуск и остановка.
+/// «Главная»: режим работы, сведения о защите и ссылки.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Читает то же, что читает консоль, и теми же библиотеками:
-/// <see cref="AppSettings"/>, <see cref="SupervisorState"/>,
-/// <see cref="HostsEditor"/>, <see cref="SecuritySoftware"/>. Ни одна строка
-/// в <c>src\</c> ради этого не тронута.
+/// Состояние связи и кнопка запуска живут в левой панели окна
+/// (<see cref="ConnectionStatus"/>), а не здесь: по референсу это роль
+/// панели, и состояние должно быть видно с любого раздела. Здесь его нет
+/// намеренно — второй показ того же означал бы второй источник истины,
+/// а два слова про одно состояние расходятся.
 /// </para>
 /// <para>
-/// Запуск и остановка идут отдельным процессом — этой же программой
-/// с ключом супервизора. Это не лень:
-/// супервизор должен пережить закрытие окна, а значит быть отдельным
-/// процессом. Консоль поступает ровно так же, запуская саму себя с ключом
-/// <c>start</c>, — и раз путь один, у окна и меню не разойдётся поведение.
+/// Поэтому раздел читает только то, что относится к настройке: пресет,
+/// параметры подключения, автозапуск, обновление, предупреждения. Всё это
+/// не меняется каждые две секунды, и своего таймера раздел не заводит —
+/// перечитывает по подписке на общее состояние.
 /// </para>
 /// </remarks>
 public partial class StatusView : UserControl
 {
-    /// <summary>Обычный период опроса.</summary>
-    private static readonly TimeSpan CalmInterval = TimeSpan.FromSeconds(2);
+    /// <summary>Предупреждение, которое стоит прочитать до запуска.</summary>
+    private sealed record WarningRow(string Title, string Body);
 
-    /// <summary>
-    /// Период опроса во время запуска: подпись фазы и счётчик секунд должны
-    /// успевать за движками, иначе окно выглядит замершим ровно тогда, когда
-    /// на него и смотрят.
-    /// </summary>
-    private static readonly TimeSpan StartingInterval = TimeSpan.FromSeconds(1);
-
-    /// <summary>
-    /// Сколько показывать запуск, прежде чем показать состояние как есть.
-    /// </summary>
-    /// <remarks>
-    /// С запасом больше суммы таймаутов готовности обоих движков и первых
-    /// перезапусков: объявить «не поднялось» раньше этого срока значило бы
-    /// соврать про ещё идущую работу.
-    /// </remarks>
-    private static readonly TimeSpan StartupPatience = TimeSpan.FromSeconds(90);
-
-    private readonly DispatcherTimer _refresh = new() { Interval = CalmInterval };
-
-    private DateTimeOffset? _startingSince;
+    /// <summary>Пресет, описание которого уже показано, — чтобы не читать файл на каждом тике.</summary>
+    private string? _notedPreset = "\0";
 
     private void OnTelegram(object sender, RoutedEventArgs e) => OpenLink(About.Telegram);
 
@@ -85,149 +58,6 @@ public partial class StatusView : UserControl
         }
     }
 
-    private void OnArtSize(object sender, SizeChangedEventArgs e) => PlaceArt();
-
-    /// <summary>Уже этой колонки персонажа в ней не ставим — картинка ляжет по центру страницы.</summary>
-    private const double ArtColumnMin = 220;
-
-    /// <summary>Затемнение над персонажем: текста там нет, читаемость беречь незачем.</summary>
-    private const double ArtDim = 0.12;
-
-    /// <summary>
-    /// Кладёт картинку темы так, чтобы её середина стояла посередине правой
-    /// колонки, и затемняет её под карточками так же, как тема.
-    /// </summary>
-    /// <remarks>
-    /// <para>
-    /// По высоте страницы, с сохранением пропорций: персонаж в картинках
-    /// стоит по центру, и при вписывании по высоте он целиком в колонке.
-    /// Слева картинка может не доставать до края — там сплошная подложка.
-    /// Край картинки растворяется в ней (маска прозрачности), и растворение
-    /// кончается до колонки с артом. Прежде я рассчитывал, что края у артов
-    /// тёмные и шва под затемнением не видно: у «Слойки» так, а у «Trident»
-    /// светлая картина обрывалась вертикальной чертой посреди карточек
-    /// (владелец, 30.09: «темы обрываются»).
-    /// </para>
-    /// <para>
-    /// Под карточками — затемнение темы (BackdropDim): с ним тема прошла
-    /// проверку читаемости, и текст на полупрозрачных карточках читается
-    /// так же, как на прочих вкладках. Переход к лёгкому затемнению —
-    /// у правого края содержимого, по ширине одной карточки.
-    /// </para>
-    /// <para>
-    /// Колонка уже 220 (окно по умолчанию, 1080): персонажу места нет,
-    /// картинка ложится по центру страницы под сплошным затемнением темы —
-    /// как на прочих вкладках. Прежде в такой колонке торчала полоска арта
-    /// в несколько точек и читалась ошибкой отрисовки (снимок 30.09).
-    /// </para>
-    /// </remarks>
-    private void PlaceArt()
-    {
-        double width = ArtLayer.ActualWidth, height = ArtLayer.ActualHeight;
-
-        // Арт — картинка темы или её живой фон: видео в словаре ресурсов
-        // не лежит (BackdropVideo), его рисунок берётся оттуда, а пропорции —
-        // у кадра.
-        (Size Size, Func<TileBrush> Make)? art = TryFindResource("SideArt") is ImageBrush { ImageSource: { } image }
-            ? (new Size(image.Width, image.Height), () => new ImageBrush(image))
-            : BackdropVideo.Current is { } video
-                ? (video.Size, () => video.Brush())
-                : null;
-
-        if (art is not { } content || width <= 0 || height <= 0 || content.Size.Height <= 0 || content.Size.Width <= 0)
-        {
-            Art.Fill = null;
-            ArtShade.Fill = null;
-            return;
-        }
-
-        double aspect = content.Size.Width / content.Size.Height;
-        double w = height * aspect, h = height;
-
-        // Уже страницы — растягиваем до её ширины: пустая полоса справа хуже обрезки.
-        if (w < width)
-        {
-            w = width;
-            h = width / aspect;
-        }
-
-        double column = ArtColumn.ActualWidth;
-        bool side = column >= ArtColumnMin;
-        double centre = side ? width - column / 2 : width / 2;
-
-        double left = centre - w / 2;
-
-        var fill = content.Make();
-        fill.Stretch = Stretch.Fill;
-        fill.TileMode = TileMode.None;
-        fill.ViewportUnits = BrushMappingMode.Absolute;
-        fill.Viewport = new Rect(left, (height - h) / 2, w, h);
-        Art.Fill = fill;
-
-        // Левый край картинки — в подложку, без черты. Растворение кончается
-        // до колонки с артом (не позже 80 % пути от края картинки до неё),
-        // чтобы персонаж стоял целиком; без колонки — на четверти картинки.
-        // Картинка, начинающаяся левее страницы, края не показывает — маска
-        // не нужна.
-        double fade = side ? Math.Max(120, (width - column - left) * 0.8) : w * 0.25;
-
-        Art.OpacityMask = left <= 0
-            ? null
-            : new LinearGradientBrush
-            {
-                MappingMode = BrushMappingMode.Absolute,
-                StartPoint = new Point(left, 0),
-                EndPoint = new Point(left + fade, 0),
-                GradientStops =
-                {
-                    new GradientStop(Colors.Transparent, 0),
-                    new GradientStop(Colors.Black, 1),
-                },
-            };
-
-        var backdrop = TryFindResource("BackdropColor") is Color c ? c : Colors.Black;
-        double dim = TryFindResource("BackdropDim") is double d ? d : 1.0;
-
-        var under = Color.FromArgb((byte)Math.Round(dim * 255), backdrop.R, backdrop.G, backdrop.B);
-
-        if (!side)
-        {
-            ArtShade.Fill = new SolidColorBrush(under);
-            return;
-        }
-
-        double edge = width - column;
-        var over = Color.FromArgb((byte)Math.Round(ArtDim * 255), backdrop.R, backdrop.G, backdrop.B);
-
-        // Переход начинается под карточками и тянется на большую часть
-        // колонки. Прежде он шёл 300 точек от края карточек: затемнение
-        // менялось прямо по волосам персонажа, у края колонки стоит ещё
-        // и полоса прокрутки страницы, и картинка читалась обрубленной
-        // по вертикальной черте (владелец, 30.09). Середина — не прямая:
-        // промежуточная точка держит затемнение дольше у карточек и
-        // быстрее отпускает у персонажа.
-        var middle = Color.FromArgb((byte)Math.Round((dim * 0.45 + ArtDim * 0.55) * 255), backdrop.R, backdrop.G, backdrop.B);
-
-        ArtShade.Fill = new LinearGradientBrush
-        {
-            MappingMode = BrushMappingMode.Absolute,
-            StartPoint = new Point(edge - 160, 0),
-            EndPoint = new Point(edge + column * 0.7, 0),
-            GradientStops =
-            {
-                new GradientStop(under, 0),
-                new GradientStop(middle, 0.4),
-                new GradientStop(over, 1),
-            },
-        };
-    }
-
-    private void OnQuickCheck(object sender, RoutedEventArgs e) => Open("check");
-
-    private void OnQuickLog(object sender, RoutedEventArgs e) => LogWindow.Open();
-
-    private void OnQuickDoctor(object sender, RoutedEventArgs e) => Open("doctor");
-
     private void OnDesyncSettings(object sender, RoutedEventArgs e) => Open("desync");
 
     private void Open(string section) => (Window.GetWindow(this) as MainWindow)?.Open(section);
@@ -240,7 +70,7 @@ public partial class StatusView : UserControl
     /// открытый им, тоже был бы администраторским — правка настроек мимо окна
     /// с полными правами без нужды. Проводник открывается от человека.
     /// </remarks>
-    private void OnQuickConfig(object sender, RoutedEventArgs e)
+    internal void OnQuickConfig(object sender, RoutedEventArgs e)
     {
         try
         {
@@ -268,7 +98,7 @@ public partial class StatusView : UserControl
 
         if (window.Changed)
         {
-            Update();
+            ConnectionStatus.Refresh();
             this.Offer("Настройки туннеля изменены");
         }
     }
@@ -277,22 +107,11 @@ public partial class StatusView : UserControl
     {
         InitializeComponent();
 
-        // Опрос по времени, а не подписка на события: супервизор — отдельный
-        // процесс и пишет своё состояние в файл. Две секунды достаточно,
-        // чтобы нажатие «Запустить» отозвалось раньше, чем человек усомнится.
-        _refresh.Tick += (_, _) => Update();
-
         Loaded += (_, _) =>
         {
-            Update();
-
-            // Не по времени, в отличие от прочего: режим меняется только
-            // отсюда, а автозапуск спрашивается у планировщика запуском
-            // schtasks — раз в две секунды это был бы процесс на ровном месте.
             var settings = AppSettings.Load(AppSettings.DefaultPath);
             ShowModes(settings);
             ShowAutostart();
-            ShowWidth(settings);
             ShowSupport(settings);
 
             // Проверка обновлений идёт при запуске окна и может закончиться
@@ -302,23 +121,21 @@ public partial class StatusView : UserControl
             UpdateNotice.Changed += OnUpdateChanged;
             ShowUpdate();
 
-            // Возврат на вкладку посреди запуска: сам запуск никуда не делся,
-            // а анимация была снята при уходе — заводим её обратно.
-            if (_startingSince is not null)
-                StartAnimations();
+            // Состояние связи — по подписке; своего таймера раздел не заводит.
+            ConnectionStatus.Changed += OnConnection;
+            Apply(ConnectionStatus.Current);
 
-            _refresh.Start();
+            ShowWarnings();
         };
 
         Unloaded += (_, _) =>
         {
             UpdateNotice.Changed -= OnUpdateChanged;
-            _refresh.Stop();
-
-            // Анимация на скрытом виде продолжала бы будить композитор
-            // впустую. Само состояние запуска при этом сохраняется.
-            StopAnimations();
+            ConnectionStatus.Changed -= OnConnection;
         };
+
+        // Сетка сведений: две колонки на широком окне, одна на узком.
+        SizeChanged += (_, _) => ArrangeGrid();
     }
 
     private void OnUpdateChanged() => Dispatcher.InvokeAsync(ShowUpdate);
@@ -389,8 +206,8 @@ public partial class StatusView : UserControl
     internal void RefreshUpdate() => ShowUpdate();
 
     /// <summary>
-    /// «Не сейчас»: об этой версии больше не напоминать. Точка у «Ещё»
-    /// остаётся — она тихая и уходит, только когда версия поставлена.
+    /// «Не сейчас»: об этой версии больше не напоминать. Точка у значка
+    /// обновления в шапке окна остаётся — она тихая.
     /// </summary>
     private void OnUpdateLater(object sender, RoutedEventArgs e)
     {
@@ -410,122 +227,74 @@ public partial class StatusView : UserControl
         UpdateCard.Visibility = Visibility.Collapsed;
     }
 
-    /// <summary>То, что «Главная» читает с диска и у системы на каждом тике.</summary>
-    /// <param name="Problem">Настройки не прочитались — почему; тогда прочее пусто.</param>
-    /// <param name="SingBoxUp">Есть ли процесс sing-box — для фазы запуска, только пока он идёт.</param>
-    /// <param name="ConfigBuilt">Когда собран конфиг туннеля; <c>null</c> — файла нет.</param>
-    private sealed record Seen(
-        AppSettings? Settings,
-        string? Problem,
-        string Subscriptions,
-        SupervisorState? State,
-        bool Running,
-        bool SingBoxUp,
-        DateTime? ConfigBuilt,
-        bool Coming = false);
-
-    private static Seen Read(bool starting)
-    {
-        AppSettings settings;
-
-        try
-        {
-            settings = AppSettings.Load(AppSettings.DefaultPath);
-        }
-        catch (Exception ex)
-        {
-            return new Seen(null, $"Настройки не читаются: {ex.Message}", string.Empty, null, false, false, null);
-        }
-
-        // Ссылки на подписки — пароли, и в окне им не место. Показываем лишь
-        // счёт: его хватает, чтобы понять, почему нет серверов.
-        string subscriptions;
-
-        try
-        {
-            subscriptions = SubscriptionBook.Load().Describe(settings);
-        }
-        catch (Exception)
-        {
-            subscriptions = string.Empty;
-        }
-
-        var state = SupervisorState.Load(SupervisorState.DefaultPath);
-        bool running = state is not null && state.IsSupervisorAlive();
-
-        DateTime? built = null;
-
-        try
-        {
-            // Конфиг собирается при каждом запуске, и серверы подписок берутся
-            // тогда же, — поэтому время файла и есть время, когда их взяли.
-            // Отдельного «подписки обновлены» программа не хранит.
-            var config = new FileInfo(Path.Combine("runtime", "singbox.json"));
-
-            if (config.Exists)
-                built = config.LastWriteTime;
-        }
-        catch (Exception)
-        {
-        }
-
-        return new Seen(settings, null, subscriptions, state, running, starting && !running && IsRunning("sing-box"), built,
-            !running && EngineControl.Coming);
-    }
-
-    private bool _updating;
-    private bool _updateAgain;
-
     /// <summary>
-    /// Перечитывает состояние в пуле и показывает его.
+    /// Две колонки или одна — по ширине раздела.
     /// </summary>
     /// <remarks>
-    /// <para>
-    /// Чтение — не в потоке окна. Сторож подвисаний 01.10 писал на «Главной»
-    /// при запуске движков 300–860 мс «занят» при 0–80 мс процессора: поток
-    /// окна ждал. В покое замер того же чтения — единицы миллисекунд, но
-    /// в нём есть ожидания: занятый файл настроек читается повтором через
-    /// 60 мс до пяти раз, процессы перебираются системой, а при запуске
-    /// файлы пишут сразу надзор и движки. Какое из ожиданий подвешивало
-    /// окно, не выяснено — уведены все.
-    /// </para>
-    /// <para>
-    /// Вызов посреди идущего чтения не теряется и не множит чтения:
-    /// отмечается, и чтение повторяется по окончании.
-    /// </para>
+    /// Разметка одна; раскладку меняет <c>Grid.SetRow/SetColumn</c>. Так
+    /// на узком окне карточки встают в столбик, а не сжимаются в две
+    /// нечитаемые колонки: кегль ради экономии места не уменьшаем.
     /// </remarks>
-    private async void Update()
+    private void ArrangeGrid()
     {
-        if (_updating)
-        {
-            _updateAgain = true;
-            return;
-        }
+        bool narrow = ActualWidth < 900;
 
-        _updating = true;
-
-        try
+        if (narrow)
         {
-            do
+            CardParams.SetValue(Grid.RowProperty, 1); CardParams.SetValue(Grid.ColumnProperty, 0);
+            CardAutostart.SetValue(Grid.RowProperty, 3); CardAutostart.SetValue(Grid.ColumnProperty, 0);
+            Updates.SetValue(Grid.RowProperty, 5); Updates.SetValue(Grid.ColumnProperty, 0);
+
+            foreach (var name in new[] { "CardPreset", "CardParams", "CardAutostart", "Updates" })
             {
-                _updateAgain = false;
-
-                bool starting = _startingSince is not null;
-                Show(await Task.Run(() => Read(starting)));
+                if (FindName(name) is FrameworkElement element)
+                    element.SetValue(Grid.ColumnSpanProperty, 3);
             }
-            while (_updateAgain);
         }
-        finally
+        else
         {
-            _updating = false;
+            CardParams.SetValue(Grid.RowProperty, 0); CardParams.SetValue(Grid.ColumnProperty, 2);
+            CardAutostart.SetValue(Grid.RowProperty, 2); CardAutostart.SetValue(Grid.ColumnProperty, 0);
+            Updates.SetValue(Grid.RowProperty, 2); Updates.SetValue(Grid.ColumnProperty, 2);
+
+            foreach (var name in new[] { "CardPreset", "CardParams", "CardAutostart", "Updates" })
+            {
+                if (FindName(name) is FrameworkElement element)
+                    element.SetValue(Grid.ColumnSpanProperty, 1);
+            }
+        }
+
+        // Три карточки режимов в строку только когда ширины хватает; иначе
+        // они встают столбиком, и выбор остаётся читаемым.
+        if (ModeGrid.Children.OfType<RadioButton>().ToList() is { Count: 3 } modes)
+        {
+            if (narrow)
+            {
+                modes[0].SetValue(Grid.RowProperty, 0); modes[0].SetValue(Grid.ColumnProperty, 0);
+                modes[1].SetValue(Grid.RowProperty, 2); modes[1].SetValue(Grid.ColumnProperty, 0);
+                modes[2].SetValue(Grid.RowProperty, 4); modes[2].SetValue(Grid.ColumnProperty, 0);
+            }
+            else
+            {
+                modes[0].SetValue(Grid.RowProperty, 0); modes[0].SetValue(Grid.ColumnProperty, 0);
+                modes[1].SetValue(Grid.RowProperty, 0); modes[1].SetValue(Grid.ColumnProperty, 2);
+                modes[2].SetValue(Grid.RowProperty, 0); modes[2].SetValue(Grid.ColumnProperty, 4);
+            }
         }
     }
 
-    private void Show(Seen seen)
+    /// <summary>
+    /// Общее состояние связи изменилось — обновляем то, что от него зависит.
+    /// </summary>
+    private void OnConnection(ConnectionSnapshot snapshot) => Apply(snapshot);
+
+    private void Apply(ConnectionSnapshot? snapshot)
     {
-        if (seen.Settings is not { } settings)
+        if (snapshot?.Settings is not { } settings)
         {
-            ShowProblem(seen.Problem!);
+            if (snapshot?.Problem is { } problem)
+                ShowProblem(problem);
+
             return;
         }
 
@@ -535,41 +304,26 @@ public partial class StatusView : UserControl
         ShowPresetNote(settings.PresetName);
         ServerValue.Text = TunnelStatus.ServerLine(settings, _exit);
         DnsValue.Text = settings.DnsServer;
-        SubscriptionValue.Text = seen.Subscriptions;
+        SubscriptionValue.Text = snapshot.Subscriptions;
 
-        var state = seen.State;
-        bool running = seen.Running;
+        SetEngines(snapshot.Engines);
+        ShowModes(settings);
 
-        // Движки поднимает не эта кнопка — перезапуск из всплывающего
-        // сообщения, трей, автозапуск: запуск показывается и тогда.
-        if (_startingSince is null && seen.Coming)
-        {
-            _startingSince = DateTimeOffset.Now;
-            _refresh.Interval = StartingInterval;
-            StartAnimations();
-        }
-
-        ShowState(settings, state, running, seen.SingBoxUp, seen.Coming);
-        ShowFooter(state, running, seen.ConfigBuilt);
-        ShowWarnings(settings);
-
-        _ = ReadExitAsync(settings, running && state!.Services.Any(s => s.Name == "sing-box"));
+        // Выход туннеля спрашивается у движка, как zy status: настройки
+        // могут говорить «авто», а движок держаться WARP из кэша. Читается
+        // в фоне и не чаще, чем движок пишет.
+        _ = ReadExitAsync(settings, snapshot.Running && snapshot.Engines.Any(e => e.Name == "sing-box" && e.Word.Length > 0));
     }
 
     /// <summary>Выход, который держит движок; <c>null</c> — не знаем или туннеля нет.</summary>
     private string? _exit;
-
     private bool _readingExit;
 
     /// <summary>
-    /// Спрашивает у движка, через какой сервер идёт трафик, — для строки «Сервер».
+    /// Перечитывает выход туннеля — в фоне и не чаще, чем пишет движок.
     /// </summary>
     /// <remarks>
-    /// Владелец 26.09: «нигде так и не написано, какой сервер активен». Строка
-    /// говорила «авто (по задержке)» — то, что в настройках, а не то, чем идёт
-    /// трафик. Спрашиваем движок, как zy status: 23.09 настройки говорили
-    /// «авто», а движок держался WARP из кэша. Прежний ответ держится до нового,
-    /// чтобы строка не мигала на каждом тике.
+    /// Прежний ответ держится до нового, чтобы строка не мигала на каждом тике.
     /// </remarks>
     private async Task ReadExitAsync(AppSettings settings, bool tunnel)
     {
@@ -603,302 +357,152 @@ public partial class StatusView : UserControl
         }
     }
 
-    private void ShowState(AppSettings settings, SupervisorState? state, bool running, bool singBoxUp, bool coming)
-    {
-        // Запуск показывается своим чередом: пока он идёт, «остановлено»
-        // означает не отказ, а то, что супервизор ещё не дописал состояние.
-        if (_startingSince is not null && ShowStarting(settings, state, running, singBoxUp, coming))
-            return;
-
-        StartButton.Visibility = running ? Visibility.Collapsed : Visibility.Visible;
-        StopButton.Visibility = running ? Visibility.Visible : Visibility.Collapsed;
-
-        if (!running)
-        {
-            ShowDot("Faint");
-            ShowStateBar("Faint");
-
-            StateLine.Text = "Остановлено";
-
-            StateHint.Text = settings.NeedsProxy || settings.NeedsDesync
-                ? "Обход не работает: трафик идёт напрямую."
-                : "В этом режиме запускать нечего: VPN выключен, пресет не выбран.";
-
-            StartButton.IsEnabled = settings.NeedsProxy || settings.NeedsDesync;
-
-            // Движки остаются на виду и остановленными, просто серыми. Пустое
-            // место на их месте читается как «их нет вовсе», тогда как раздел
-            // отвечает на другой вопрос: что должно работать и работает ли.
-            SetEngines(Planned(settings, "остановлен", "Faint"));
-
-            return;
-        }
-
-        var services = state!.Services;
-        bool healthy = services.All(s => s.Health == ServiceHealth.Healthy);
-
-        // Три состояния, а не два. «Оговорки» бывают разной тяжести: движок,
-        // которому не удалась глубокая проверка, ещё несёт трафик, а умерший
-        // не несёт ничего. Одним жёлтым это выглядело одинаково, и разницу
-        // приходилось искать в списке ниже.
-        bool broken = services.Any(s =>
-            s.Health is ServiceHealth.Dead or ServiceHealth.Faulted);
-
-        var colour = healthy ? "Accent" : broken ? "Danger" : "Warn";
-
-        ShowDot(colour);
-        ShowStateBar(colour);
-
-        StateLine.Text = healthy
-            ? "Работает"
-            : broken ? "Движок не работает" : "Работает с оговорками";
-
-        StateHint.Text = healthy
-            ? $"Запущено {Ago(state.StartedAt)}."
-            : broken
-                ? "Один из движков не запущен — обход работает не полностью. Подробности ниже."
-                : "Часть движков не в порядке — подробности ниже.";
-
-        SetEngines(services.Select(Row).ToList());
-    }
+    private IReadOnlyList<EngineRow>? _engines;
 
     /// <summary>
-    /// Показывает ход запуска. Возвращает <c>false</c>, когда показывать
-    /// больше нечего и состояние пора рисовать обычным путём.
+    /// Строки движков — только если что-то в них изменилось.
     /// </summary>
     /// <remarks>
-    /// Умерший движок здесь не считается концом: супервизор его перезапустит,
-    /// и до тех пор запуск продолжается. Концом считается только «сдался»
-    /// либо исчерпанное терпение — иначе окно объявляло бы отказ, пока
-    /// внизу ещё идут попытки.
+    /// Строки — записи, и сравниваются по значению: одинаковые не трогаем,
+    /// иначе новый ItemsSource раз в тик — это новые элементы со всеми
+    /// шаблонами, и окно дёргалось бы даже в покое.
     /// </remarks>
-    private bool ShowStarting(AppSettings settings, SupervisorState? state, bool running, bool singBoxUp, bool coming)
+    private void SetEngines(IReadOnlyList<EngineRow> rows)
     {
-        var since = _startingSince!.Value;
-        var services = running ? state!.Services : [];
+        if (_engines is not null && _engines.SequenceEqual(rows))
+            return;
 
-        bool ready = services.Count > 0 && services.All(s => s.Health == ServiceHealth.Healthy);
-        bool gaveUp = services.Any(s => s.Health == ServiceHealth.Faulted);
+        _engines = rows;
 
-        // Ни состояния, ни живого супервизора, ни запуска в очереди — значит,
-        // он ушёл, не подняв движков. Ждать тут все 90 с незачем.
-        bool gone = !running && !coming && DateTimeOffset.Now - since > TimeSpan.FromSeconds(3);
-
-        if (ready || gaveUp || gone || DateTimeOffset.Now - since > StartupPatience)
-        {
-            EndStarting();
-            return false;
-        }
-
-        StartButton.Visibility = Visibility.Collapsed;
-        StopButton.Visibility = Visibility.Visible;
-        StopButton.IsEnabled = true;
-
-        ShowDot("Warn");
-        ShowStateBar("Warn");
-
-        StateLine.Text = "Запускается…";
-
-        var seconds = (int)(DateTimeOffset.Now - since).TotalSeconds;
-        StateHint.Text = $"{DescribePhase(settings, running, singBoxUp, services)} — {seconds} с";
-
-        // Пока супервизор не дописал состояние, движки показываются жёлтыми
-        // и «запускается». Прежде список опустошался, и они пропадали ровно
-        // на те десятки секунд, когда на них и смотрят: раздел отвечал «их
-        // нет» на вопрос «поднимаются ли они».
-        SetEngines(services.Count > 0
-            ? services.Select(Row).ToList()
-            : Planned(settings, "запускается", "Warn"));
-
-        return true;
+        ShowEngine(rows.FirstOrDefault(r => r.Name == "winws2"), DesyncDot, DesyncState, DesyncPid);
+        ShowEngine(rows.FirstOrDefault(r => r.Name == "sing-box"), TunnelDot, TunnelState, TunnelPid);
     }
 
-    /// <summary>
-    /// Чем занят запуск прямо сейчас.
-    /// </summary>
+    /// <summary>Строка состояния движка в его карточке.</summary>
     /// <remarks>
-    /// До появления состояния фаза определяется по живым процессам, а не по
-    /// файлу: супервизор пишет состояние впервые лишь после того, как поднял
-    /// все службы, — то есть ровно после окончания промежутка, который здесь
-    /// и показывается. Файл в это время либо отсутствует, либо остался от
-    /// прошлого запуска.
+    /// Нет строки — движок в этот запуск не поднимали: выключен или нет
+    /// подписки. «Остановлен» здесь соврало бы, что он был.
     /// </remarks>
-    private static string DescribePhase(
-        AppSettings settings,
-        bool running,
-        bool singBoxUp,
-        IReadOnlyList<ServiceState> services)
+    private void ShowEngine(EngineRow? row, System.Windows.Shapes.Ellipse dot, TextBlock state, TextBlock pid)
     {
-        if (!running)
+        if (row is null)
         {
-            if (!singBoxUp)
-                return "Собираем конфиг и поднимаем супервизор";
-
-            // Проверка прохода трафика уходит в сеть и занимает основную часть
-            // ожидания, поэтому названа отдельно: иначе эти секунды выглядят
-            // как необъяснённая пауза.
-            return settings.VerifyTraffic
-                ? "Туннель поднимается, проверяем проход трафика"
-                : "Туннель поднимается";
-        }
-
-        var singBox = services.FirstOrDefault(s => s.Name == "sing-box");
-
-        return singBox?.Health switch
-        {
-            ServiceHealth.Degraded => "Туннель поднят, проверка ещё не прошла",
-            ServiceHealth.Dead => "Туннель не поднялся, идёт перезапуск",
-            _ => "Движки поднимаются",
-        };
-    }
-
-    private static bool IsRunning(string processName)
-    {
-        var found = Process.GetProcessesByName(processName);
-
-        // Каждый Process держит системный дескриптор, а опрос идёт раз
-        // в секунду: без освобождения они копятся всё время запуска.
-        foreach (var process in found)
-            process.Dispose();
-
-        return found.Length > 0;
-    }
-
-    private void BeginStarting()
-    {
-        _startingSince = DateTimeOffset.Now;
-        _refresh.Interval = StartingInterval;
-
-        StartAnimations();
-        Update();
-    }
-
-    private void EndStarting()
-    {
-        _startingSince = null;
-        _refresh.Interval = CalmInterval;
-
-        StopAnimations();
-    }
-
-    private void StartAnimations()
-    {
-        // Анимации выключены — запуск видно цветом полосы, без бега и мигания.
-        if (!Motion.Enabled)
-        {
-            ShowStateBar("Warn");
+            dot.SetResourceReference(System.Windows.Shapes.Shape.FillProperty, "Faint");
+            state.Text = "выключен";
+            pid.Text = string.Empty;
             return;
         }
 
-        // Дорожка тусклая, засечка яркая. Прежде оба красились в Warn,
-        // и бегущая метка была невидима: она ехала по полосе своего же цвета.
-        ShowStateBar("Border");
-        StartProgressMark.Visibility = Visibility.Visible;
+        dot.Fill = ConnectionStatus.Brush(this, row.ColourKey);
+        state.Text = row.Word;
 
-        // Ширину берём измеренную: полоса на экране уже есть, потому что
-        // кнопку только что нажали. Запасное значение — на случай, если
-        // раскладка почему-то ещё не прошла: метка уехала бы мимо полосы.
-        var span = StateBar.ActualWidth > 0 ? StateBar.ActualWidth : 520;
-
-        StartProgressShift.BeginAnimation(TranslateTransform.XProperty, new DoubleAnimation
-        {
-            From = -StartProgressMark.Width,
-            To = span,
-            Duration = new Duration(TimeSpan.FromSeconds(1.3)),
-            RepeatBehavior = RepeatBehavior.Forever,
-        });
-
-        Dot.BeginAnimation(OpacityProperty, new DoubleAnimation
-        {
-            From = 1,
-            To = 0.2,
-            Duration = new Duration(TimeSpan.FromSeconds(0.8)),
-            AutoReverse = true,
-            RepeatBehavior = RepeatBehavior.Forever,
-        });
+        // Номер процесса — чтобы найти движок в диспетчере задач (владелец,
+        // 26.09). У движка не в порядке на его месте причина надзора: она
+        // важнее номера.
+        pid.Text = row.Detail.Length > 0
+            ? row.Detail
+            : row.ProcessId is { } id ? $"№{id}" : string.Empty;
+        pid.ToolTip = row.Detail.Length > 0
+            ? row.Detail
+            : row.ProcessId is { } shown ? $"Процесс {shown} — так его ищут в диспетчере задач" : null;
     }
 
-    private void StopAnimations()
-    {
-        StartProgressMark.Visibility = Visibility.Collapsed;
+    private IReadOnlyList<WarningRow>? _warnings;
+    private DateTimeOffset _warningsAt = DateTimeOffset.MinValue;
+    private bool _warningsBusy;
 
-        // Снятие анимации передачей null обязательно: остановленная анимация
-        // продолжает удерживать своё последнее значение, и точка осталась бы
-        // навсегда полупрозрачной, а «работает» выглядело бы приглушённым.
-        StartProgressShift.BeginAnimation(TranslateTransform.XProperty, null);
-        Dot.BeginAnimation(OpacityProperty, null);
-        Dot.Opacity = 1;
-    }
+    /// <summary>Сколько держать проверку антивирусов и hosts, прежде чем повторить.</summary>
+    private static readonly TimeSpan WarningsInterval = TimeSpan.FromSeconds(30);
 
     /// <summary>
-    /// Красит полосу состояния в тот же цвет, что и точка.
+    /// Предупреждения — в фоне и раз в полминуты, а не в потоке окна.
     /// </summary>
     /// <remarks>
-    /// Один источник цвета на оба показа: разойдясь, они дали бы зелёную
-    /// точку над красной полосой — и человеку пришлось бы решать, какой
-    /// из них верить.
+    /// Проверка антивирусов перебирает все процессы системы, а проверка hosts
+    /// читает почти тысячу строк файла. Ни то, ни другое за две секунды
+    /// не меняется.
     /// </remarks>
-    /// <summary>
-    /// Красит точку состояния и точку в строке внизу — одним цветом.
-    /// </summary>
-    /// <remarks>
-    /// Свечение у точки убрано вместе с переходом на Breeze Light: на светлой
-    /// подложке размытое пятно читалось как грязь, а состояние и без него
-    /// названо словом в строке рядом.
-    /// </remarks>
-    private void ShowDot(string colourKey)
+    private void ShowWarnings()
     {
-        var brush = (Brush)FindResource(colourKey);
+        if (_warningsBusy || DateTimeOffset.Now - _warningsAt < WarningsInterval)
+            return;
 
-        Dot.Fill = brush;
-        FooterDot.Fill = brush;
-    }
+        _warningsBusy = true;
 
-    /// <summary>
-    /// Строка внизу: состояние с длительностью и время сборки конфига туннеля.
-    /// </summary>
-    private void ShowFooter(SupervisorState? state, bool running, DateTime? configBuilt)
-    {
-        FooterState.Text = running && _startingSince is null
-            ? $"{StateLine.Text} · {Span(DateTimeOffset.Now - state!.StartedAt)}"
-            : StateLine.Text;
+        var settings = AppSettings.TryLoad(AppSettings.DefaultPath, out _);
+        bool needsDesync = settings?.NeedsDesync ?? false;
+        bool hybrid = settings is not null && WorkModes.Of(settings.Engines) == WorkMode.Route;
 
-        FooterConfig.Text = configBuilt is { } at
-            ? $"Конфиг туннеля собран {at:dd.MM.yyyy} в {at:HH:mm}"
-            : string.Empty;
-    }
-
-    /// <summary>«23 дня, 4 часа», «4 ч 12 мин», «7 мин».</summary>
-    internal static string Span(TimeSpan span)
-    {
-        if (span.TotalDays >= 1)
+        _ = Task.Run(() => CollectWarnings(needsDesync, hybrid)).ContinueWith(task =>
         {
-            int days = (int)span.TotalDays;
-            return $"{days} {Plural(days, "день", "дня", "дней")}, {span.Hours} {Plural(span.Hours, "час", "часа", "часов")}";
+            _warningsBusy = false;
+            _warningsAt = DateTimeOffset.Now;
+
+            if (task.IsCompletedSuccessfully)
+                SetWarnings(task.Result);
+        }, TaskScheduler.FromCurrentSynchronizationContext());
+    }
+
+    private void SetWarnings(IReadOnlyList<WarningRow> rows)
+    {
+        if (_warnings is not null && _warnings.SequenceEqual(rows))
+            return;
+
+        _warnings = rows;
+        Warnings.ItemsSource = rows;
+    }
+
+    private static IReadOnlyList<WarningRow> CollectWarnings(bool needsDesync, bool hybrid)
+    {
+        var rows = new List<WarningRow>();
+
+        // «Гибрид» решает, что через VPN, по именам. Браузер со своим
+        // шифрованным DNS спрашивает имена мимо системы — наш резолвер их
+        // не видит, правило не срабатывает, и сайт, которому нужен туннель,
+        // идёт напрямую и не открывается.
+        if (hybrid)
+        {
+            foreach (var browser in BrowserDns.Scan())
+            {
+                rows.Add(new WarningRow(
+                    $"{browser.Browser} спрашивает имена сам, мимо системы",
+                    "В «Гибриде» путь имени (через VPN или напрямую) решает наш резолвер, "
+                    + "а такой браузер его не спрашивает: сайт, которому нужен туннель, "
+                    + "пойдёт напрямую и не откроется. Выключите свой DNS в браузере: "
+                    + browser.Setting + "."));
+            }
         }
 
-        return span.TotalHours >= 1
-            ? $"{(int)span.TotalHours} ч {span.Minutes} мин"
-            : $"{Math.Max(0, span.Minutes)} мин";
-    }
-
-    private static string Plural(int count, string one, string few, string many)
-    {
-        int tail = count % 100;
-
-        if (tail is >= 11 and <= 14)
-            return many;
-
-        return (tail % 10) switch
+        if (HostsEditor.WhoReplaced() is { } who)
         {
-            1 => one,
-            2 or 3 or 4 => few,
-            _ => many,
-        };
+            rows.Add(new WarningRow(
+                $"Файл hosts переписан: {who}",
+                "Изменённый hosts он считает признаком заражения и вернул файл к своему "
+                + "умолчанию — вместе со всеми пинами. Пин на этой машине не живёт, пока "
+                + "файл не внесён в доверенные."));
+        }
+
+        var guards = SecuritySoftware.Running();
+
+        if (guards.Count > 0 && needsDesync)
+        {
+            rows.Add(new WarningRow(
+                $"Работает {string.Join(", ", guards.Select(g => g.Name))}",
+                "Его сетевой фильтр встаёт на тот же слой, что и наш, проверка защищённых "
+                + "соединений переустанавливает TLS своим клиентом, а WinDivert он помечает "
+                + "как RiskTool и может увезти в карантин. Мы этого отсюда не видим; если "
+                + "обход не помогает без внятной причины — отключите защиту на десять минут "
+                + "и повторите."));
+        }
+
+        return rows;
     }
 
-    /// <summary>Пресет, описание которого уже показано, — чтобы не читать файл на каждом тике.</summary>
-    private string? _notedPreset = "\0";
+    private void ShowProblem(string text)
+    {
+        Problem.Text = text;
+        Problem.Visibility = Visibility.Visible;
+    }
 
     /// <summary>
     /// Первая фраза описания пресета — из его же файла.
@@ -1016,7 +620,8 @@ public partial class StatusView : UserControl
 
             (settings with { PresetName = name }).Save(AppSettings.DefaultPath);
 
-            Update();
+            _notedPreset = "\0";
+            ConnectionStatus.Refresh();
             this.Offer($"Выбран пресет «{name}»");
         }
         catch (Exception ex)
@@ -1025,233 +630,8 @@ public partial class StatusView : UserControl
         }
     }
 
-    private void ShowStateBar(string colourKey) =>
-        StateBarFill.Fill = (Brush)FindResource(
-            // Точки и полосы берут насыщенный жёлтый: текстовый на светлой
-            // теме выглядит у мелкой метки не предупреждением, а выцветшей
-            // серостью — у неё нет площади, чтобы донести приглушённый оттенок.
-            colourKey == "Warn" ? "WarnFill" : colourKey);
-
     /// <summary>
-    /// Движки, которые поднимутся при нынешней настройке.
-    /// </summary>
-    /// <remarks>
-    /// Список тот же, что собирает супервизор: туннель — когда режим ведёт
-    /// хоть что-то через VPN, десинк — когда выбран пресет. В режиме, где
-    /// не запускается ничего, список пуст, и это верно: запускать нечего.
-    /// </remarks>
-    private IReadOnlyList<EngineRow> Planned(AppSettings settings, string detail, string colourKey)
-    {
-        var rows = new List<EngineRow>();
-        var colour = (Brush)FindResource(colourKey);
-
-        if (settings.NeedsProxy)
-            rows.Add(new EngineRow("sing-box", detail, string.Empty, colour));
-
-        if (settings.NeedsDesync)
-            rows.Add(new EngineRow("winws2", detail, string.Empty, colour));
-
-        return rows;
-    }
-
-    private EngineRow Row(ServiceState service)
-    {
-        // Слова те же, что в консоли. Degraded — это «процесс жив, а проверка
-        // не проходит»: самый коварный случай, и называть его «работает»
-        // нельзя, иначе окно будет уверять в исправности молчащей трубы.
-        // Слова — общие с треем и zy status (EngineHealth.Status): причина
-        // надзора и время начала, а не «запущен, но не отвечает» (26.09).
-        var key = service.Health switch
-        {
-            ServiceHealth.Healthy => "Accent",
-            ServiceHealth.Degraded => "Warn",
-            ServiceHealth.Dead or ServiceHealth.Faulted => "Danger",
-            _ => "Faint",
-        };
-
-        // Причина — только у того, что не работает: у работающего Status
-        // говорит «работает, процесс N», а номер и так стоит строкой ниже.
-        // У работающего — только примечание надзора («временная замена…»).
-        var detail = service.Health == ServiceHealth.Healthy
-            ? service.Remark ?? string.Empty
-            : EngineHealth.Status(service);
-
-        return new EngineRow(service.Name, EngineHealth.Word(service.Health), detail, (Brush)FindResource(key), service.ProcessId);
-    }
-
-    /// <summary>
-    /// То, что стоит знать до запуска.
-    /// </summary>
-    /// <remarks>
-    /// Оба случая измерены на живых машинах и оба приходят молча. Защитник
-    /// со своим сетевым фильтром обесценивает десинк, ничего об этом
-    /// не сообщая; Kaspersky вдобавок возвращает файл hosts к своему
-    /// умолчанию, стирая все пины.
-    /// </remarks>
-    private IReadOnlyList<EngineRow>? _engines;
-    private IReadOnlyList<WarningRow>? _warnings;
-    private DateTimeOffset _warningsAt = DateTimeOffset.MinValue;
-    private bool _warningsBusy;
-
-    /// <summary>Сколько держать проверку антивирусов и hosts, прежде чем повторить.</summary>
-    private static readonly TimeSpan WarningsInterval = TimeSpan.FromSeconds(30);
-
-    /// <summary>
-    /// Карточки движков — только если что-то в них изменилось.
-    /// </summary>
-    /// <remarks>
-    /// Прежде список собирался заново каждые две секунды: новый ItemsSource —
-    /// это новые элементы со всеми шаблонами, и окно дёргалось раз в два
-    /// тика даже на RTX 4060 (владелец, 24.09: «интерфейс подвисать может»).
-    /// Строки — записи, и сравниваются по значению: одинаковые не трогаем.
-    /// </remarks>
-    private void SetEngines(IReadOnlyList<EngineRow> rows)
-    {
-        if (_engines is not null && _engines.SequenceEqual(rows))
-            return;
-
-        _engines = rows;
-
-        // Движки — в карточке «Режим» (04.10), оба при любом режиме (владелец:
-        // «пусть эти движки будут и в десинке, и в туннеле»): не нужный режиму
-        // скажет «выключен», как в трее, а высота карточки от режима не зависит.
-        ShowEngine(rows.FirstOrDefault(r => r.Name == "winws2"), DesyncDot, DesyncState, DesyncPid);
-        ShowEngine(rows.FirstOrDefault(r => r.Name == "sing-box"), TunnelDot, TunnelState, TunnelPid);
-    }
-
-    /// <summary>Строка состояния движка в его карточке.</summary>
-    /// <remarks>
-    /// Нет строки — движок в этот запуск не поднимали: выключен или нет
-    /// подписки. «Остановлен» здесь соврало бы, что он был.
-    /// </remarks>
-    private void ShowEngine(EngineRow? row, System.Windows.Shapes.Ellipse dot, TextBlock state, TextBlock pid)
-    {
-        if (row is null)
-        {
-            dot.SetResourceReference(System.Windows.Shapes.Shape.FillProperty, "Faint");
-            state.Text = "выключен";
-            pid.Text = string.Empty;
-            return;
-        }
-
-        dot.Fill = row.Color;
-        state.Text = row.Word;
-
-        // Номер процесса — чтобы найти движок в диспетчере задач (владелец,
-        // 26.09). У движка не в порядке на его месте причина надзора: она
-        // важнее номера. В строке плитки места мало — целиком она в подсказке.
-        pid.Text = row.Detail.Length > 0
-            ? row.Detail
-            : row.ProcessId is { } id ? $"№{id}" : string.Empty;
-        pid.ToolTip = row.Detail.Length > 0
-            ? row.Detail
-            : row.ProcessId is { } shown ? $"Процесс {shown} — так его ищут в диспетчере задач" : null;
-    }
-
-    /// <summary>
-    /// Предупреждения — в фоне и раз в полминуты, а не в потоке окна каждые две секунды.
-    /// </summary>
-    /// <remarks>
-    /// Проверка антивирусов перебирает все процессы системы, а проверка hosts
-    /// читает почти тысячу строк файла. Ни то, ни другое за две секунды
-    /// не меняется, а делалось в потоке окна на каждом тике.
-    /// </remarks>
-    private void ShowWarnings(AppSettings settings)
-    {
-        if (_warningsBusy || DateTimeOffset.Now - _warningsAt < WarningsInterval)
-            return;
-
-        _warningsBusy = true;
-        bool needsDesync = settings.NeedsDesync;
-        bool hybrid = WorkModes.Of(settings.Engines) == WorkMode.Route;
-
-        _ = Task.Run(() => CollectWarnings(needsDesync, hybrid)).ContinueWith(task =>
-        {
-            _warningsBusy = false;
-            _warningsAt = DateTimeOffset.Now;
-
-            if (task.IsCompletedSuccessfully)
-                SetWarnings(task.Result);
-        }, TaskScheduler.FromCurrentSynchronizationContext());
-    }
-
-    private void SetWarnings(IReadOnlyList<WarningRow> rows)
-    {
-        if (_warnings is not null && _warnings.SequenceEqual(rows))
-            return;
-
-        _warnings = rows;
-        Warnings.ItemsSource = rows;
-    }
-
-    private static IReadOnlyList<WarningRow> CollectWarnings(bool needsDesync, bool hybrid)
-    {
-        var rows = new List<WarningRow>();
-
-        // «Гибрид» решает, что через VPN, по именам. Браузер со своим
-        // шифрованным DNS спрашивает имена мимо системы — наш резолвер их
-        // не видит, правило не срабатывает, и сайт, которому нужен туннель,
-        // идёт напрямую и не открывается. Со стороны это неотличимо от
-        // «маршрут не работает», а лечится одной галочкой в браузере.
-        if (hybrid)
-        {
-            foreach (var browser in BrowserDns.Scan())
-            {
-                rows.Add(new WarningRow(
-                    $"{browser.Browser} спрашивает имена сам, мимо системы",
-                    "В «Гибриде» путь имени (через VPN или напрямую) решает наш резолвер, "
-                    + "а такой браузер его не спрашивает: сайт, которому нужен туннель, "
-                    + "пойдёт напрямую и не откроется. Выключите свой DNS в браузере: "
-                    + browser.Setting + "."));
-            }
-        }
-
-        if (HostsEditor.WhoReplaced() is { } who)
-        {
-            rows.Add(new WarningRow(
-                $"Файл hosts переписан: {who}",
-                "Изменённый hosts он считает признаком заражения и вернул файл к своему "
-                + "умолчанию — вместе со всеми пинами. Пин на этой машине не живёт, пока "
-                + "файл не внесён в доверенные."));
-        }
-
-        var guards = SecuritySoftware.Running();
-
-        if (guards.Count > 0 && needsDesync)
-        {
-            rows.Add(new WarningRow(
-                $"Работает {string.Join(", ", guards.Select(g => g.Name))}",
-                "Его сетевой фильтр встаёт на тот же слой, что и наш, проверка защищённых "
-                + "соединений переустанавливает TLS своим клиентом, а WinDivert он помечает "
-                + "как RiskTool и может увезти в карантин. Мы этого отсюда не видим; если "
-                + "обход не помогает без внятной причины — отключите защиту на десять минут "
-                + "и повторите."));
-        }
-
-        return rows;
-    }
-
-    private void ShowProblem(string text)
-    {
-        Problem.Text = text;
-        Problem.Visibility = Visibility.Visible;
-    }
-
-    private static string Ago(DateTimeOffset since)
-    {
-        var passed = DateTimeOffset.Now - since;
-
-        return passed switch
-        {
-            { TotalMinutes: < 1 } => "только что",
-            { TotalHours: < 1 } => $"{(int)passed.TotalMinutes} мин назад",
-            { TotalDays: < 1 } => $"{(int)passed.TotalHours} ч назад",
-            _ => $"{(int)passed.TotalDays} дн назад",
-        };
-    }
-
-    /// <summary>
-    /// Пять режимов с ценой каждого.
+    /// Три режима с ценой каждого.
     /// </summary>
     /// <remarks>
     /// Цена названа в самом описании, а не выясняется опытом: «всё через VPN
@@ -1267,6 +647,11 @@ public partial class StatusView : UserControl
         ModeTunnelName.Text = WorkModes.Name(WorkMode.Tunnel);
         ModeRouteName.Text = WorkModes.Name(WorkMode.Route);
 
+        // Короткие пояснения на карточках: выбор читается без подсказки.
+        ModeDesyncNote.Text = "По имени, адрес домашний";
+        ModeTunnelNote.Text = "Весь трафик через VPN";
+        ModeRouteNote.Text = "Что нужно — в VPN, остальное напрямую";
+
         // Пояснение — выбранного режима. «Без исключений» — настройка внутри
         // «Туннеля»: включённая, она меняет смысл режима, и молчать о ней нельзя.
         ModeText.Text = mode is not { } chosen
@@ -1277,7 +662,7 @@ public partial class StatusView : UserControl
                     : string.Empty);
         ModeText.ToolTip = ModeText.Text;
 
-        // «Ничего не поднято» режимом не считается — ни один сегмент не выбран.
+        // «Ничего не поднято» режимом не считается — ни одна карточка не выбрана.
         ModeDesync.IsChecked = mode == WorkMode.Desync;
         ModeTunnel.IsChecked = mode == WorkMode.Tunnel;
         ModeRoute.IsChecked = mode == WorkMode.Route;
@@ -1296,15 +681,14 @@ public partial class StatusView : UserControl
         EnginesLine.Visibility = complaint is null ? Visibility.Collapsed : Visibility.Visible;
 
         // Автозапуск поднимает ровно это. Сказано здесь же, где задано:
-        // иначе про связь пришлось бы догадываться, а догадка — источник
-        // того самого «трей запускается, а движки нужно поднимать кнопкой».
+        // иначе про связь пришлось бы догадываться.
         AutostartRaises.Text = mode is { } raised
             ? $"При входе в Windows поднимется режим «{WorkModes.Name(raised)}»."
             : "При входе в Windows ничего не поднимется: режим не выбран.";
     }
 
     /// <summary>
-    /// Переключает движок.
+    /// Переключает движки под выбранный режим.
     /// </summary>
     /// <remarks>
     /// Через <see cref="AppSettings.With(EngineChoice)"/>: тот пишет заодно
@@ -1321,7 +705,7 @@ public partial class StatusView : UserControl
             next.Save(AppSettings.DefaultPath);
 
             ShowModes(next);
-            Update();
+            ConnectionStatus.Refresh();
 
             this.Offer("Режим: " + next.Engines.Describe());
         }
@@ -1331,7 +715,7 @@ public partial class StatusView : UserControl
         }
     }
 
-    /// <summary>Выбран режим — выключатели под него (Rules.WorkModes) и предложение перезапустить.</summary>
+    /// <summary>Выбран режим — движки под него (Rules.WorkModes) и предложение перезапустить.</summary>
     private void OnMode(object sender, RoutedEventArgs e)
     {
         if (sender is FrameworkElement { Tag: string tag } && Enum.TryParse<WorkMode>(tag, out var mode))
@@ -1344,8 +728,7 @@ public partial class StatusView : UserControl
     /// <remarks>
     /// Планировщик спрашивается в фоне, а до ответа показывается прошлый.
     /// Замер 28.09: два запуска schtasks — «заведена ли» и «не устарела ли» —
-    /// 73–91 мс на главном потоке при каждом открытии «Главной», и это была
-    /// большая часть паузы, о которую спотыкалась анимация раздела.
+    /// 73–91 мс на главном потоке при каждом открытии «Главной».
     /// </remarks>
     private async void ShowAutostart()
     {
@@ -1404,20 +787,11 @@ public partial class StatusView : UserControl
     /// Запускает ли задача не ту программу.
     /// </summary>
     /// <remarks>
-    /// <para>
     /// Задача переживает обновление, а её команда — нет: она записана внутрь
-    /// задачи целиком, путём и ключами. До 0.5.0 автозапуск поднимал
-    /// zephyron.exe, которого в поставке уже нет, и «заведена» при мёртвой
-    /// команде — худший из возможных ответов: обход при входе не поднимется,
-    /// а окно скажет, что всё в порядке.
-    /// </para>
-    /// <para>
-    /// Сверяется имя файла, а не путь целиком, и не ключи. Ключи менялись
-    /// и ещё будут меняться, а запуск исчезнувшей программы — беда другого
-    /// порядка. Путь целиком не годится: он может содержать кириллицу,
-    /// а schtasks при перенаправлении отвечает однобайтовой OEM — имя же
-    /// латинское и переживает любую из них.
-    /// </para>
+    /// задачи целиком, путём и ключами. Сверяется имя файла, а не путь
+    /// целиком: путь может содержать кириллицу, а schtasks при
+    /// перенаправлении отвечает однобайтовой OEM — имя же латинское
+    /// и переживает любую из них.
     /// </remarks>
     private static bool IsStale()
     {
@@ -1485,10 +859,7 @@ public partial class StatusView : UserControl
                     ExecutablePath = exe,
 
                     // Задача поднимает интерфейс в трей, а движки он заводит
-                    // сам — теми же ключами, что и кнопка «Запустить». Прежде
-                    // задача поднимала один супервизор, и при входе не было
-                    // ни значка, ни способа остановить обход, кроме как
-                    // открыть программу заново.
+                    // сам — теми же ключами, что и кнопка «Запустить».
                     Arguments = TrayIcon.Switch,
                     WorkingDirectory = Path.GetFullPath("."),
                     // SID, а не имя: см. AutostartTask.CurrentUserId.
@@ -1507,91 +878,5 @@ public partial class StatusView : UserControl
         // Задачу только что завели или убрали — запомненный ответ устарел.
         _autostart = null;
         ShowAutostart();
-    }
-
-    /// <summary>
-    /// Собирает конфиг и поднимает движки.
-    /// </summary>
-    /// <remarks>
-    /// Сборка идёт при каждом запуске, как в меню консоли. Без неё окно
-    /// поднимало движки с тем конфигом, что лежал на диске: смена сервера,
-    /// правки маршрутов и переключение режима показывались новыми, а до
-    /// туннеля не доходили, пока конфиг не соберут отдельно.
-    /// </remarks>
-    private async void OnStart(object sender, RoutedEventArgs e)
-    {
-        StartButton.IsEnabled = false;
-        StateLine.Text = "Собираю конфиг…";
-        StateHint.Text = "Читаю подписку и правила.";
-
-        var outcome = await EngineControl.StartAsync("кнопка «Запустить» на «Главной»", CancellationToken.None);
-
-        StartButton.IsEnabled = true;
-
-        if (!outcome.Ok)
-        {
-            ShowProblem(outcome.Message);
-            Update();
-            return;
-        }
-
-        // Прежде кнопки просто гасли на три секунды. Этого хватало, пока
-        // запуск был мгновенным; с проверкой прохода трафика он занимает
-        // десятки секунд, и кнопки оживали посреди подъёма, показывая
-        // «остановлено» у ещё запускающегося движка.
-        BeginStarting();
-    }
-
-    private async void OnStop(object sender, RoutedEventArgs e)
-    {
-        EndStarting();
-
-        StopButton.IsEnabled = false;
-        StateLine.Text = "Останавливаю…";
-
-        await EngineControl.StopAsync("кнопка «Остановить» на «Главной»", CancellationToken.None);
-
-        StopButton.IsEnabled = true;
-        Update();
-    }
-
-
-    /// <summary>
-    /// «На всю ширину» (Оформление, 01.10): без предела у содержимого и без колонки под арт.
-    /// </summary>
-    /// <remarks>
-    /// <para>
-    /// Фон тогда — как у прочих вкладок: своя картинка «Главной» прячется,
-    /// подложка становится прозрачной (Chrome), и видна картинка окна под
-    /// затемнением темы. Владелец 01.10: растянули — «обои темы не должны
-    /// сдвигаться вправо».
-    /// </para>
-    /// <para>
-    /// Своя картинка пересчитывается только по размеру своего слоя, а он
-    /// при смене колонок не меняется: стоило лишь обнулить колонку, и арт
-    /// оставался на месте, рассчитанном под неё, — сдвинутым вправо.
-    /// </para>
-    /// </remarks>
-    private void ShowWidth(AppSettings settings)
-    {
-        // Тема тоже может попросить всю ширину — NyaView (08.10): её видео
-        // в узкой колонке справа — размытое пятно (Theme.HomeFullWidth).
-        if (settings.HomeFullWidth || Themes.WideHome)
-        {
-            ContentColumn.MaxWidth = double.PositiveInfinity;
-            ArtColumn.Width = new GridLength(0);
-            ArtLayer.Visibility = Visibility.Collapsed;
-            SetResourceReference(BackgroundProperty, "Chrome");
-        }
-        else
-        {
-            ContentColumn.MaxWidth = 940;
-            ArtColumn.Width = new GridLength(1, GridUnitType.Star);
-            ArtLayer.Visibility = Visibility.Visible;
-            SetResourceReference(BackgroundProperty, "Backdrop");
-
-            // Слой мог прятаться — разложить заново, когда станет известен размер.
-            Dispatcher.BeginInvoke(PlaceArt, System.Windows.Threading.DispatcherPriority.Loaded);
-        }
     }
 }
