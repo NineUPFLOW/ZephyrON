@@ -162,16 +162,20 @@
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
 
-                    <ScrollViewer Grid.Column="0" HorizontalScrollBarVisibility="Hidden"
-                                  VerticalScrollBarVisibility="Disabled">
-                        <StackPanel x:Name="Nav" Orientation="Horizontal" Margin="0,10">
-                            <RadioButton x:Name="RailStatus" Style="{StaticResource NavTab}" Content="Главная" Tag="status" local:MenuIcon.Glyph="&#xE80F;" IsChecked="True" Checked="OnSection" />
-                            <RadioButton Style="{StaticResource NavTab}" Content="VPN" Tag="vpn" local:MenuIcon.Glyph="&#xE774;" Checked="OnSection" />
-                            <RadioButton Style="{StaticResource NavTab}" Content="Десинк" Tag="desync" local:MenuIcon.Glyph="&#xE9E9;" Checked="OnSection" />
-                            <RadioButton Style="{StaticResource NavTab}" Content="Маршруты" Tag="routes" local:MenuIcon.Glyph="&#xE816;" Checked="OnSection" />
-                            <RadioButton Style="{StaticResource NavTab}" Content="TG Proxy" Tag="tgproxy" local:MenuIcon.Glyph="&#xE724;" Checked="OnSection" />
-                        </StackPanel>
-                    </ScrollViewer>
+                    <!--
+                        Разделы переносятся в строку с переносом, а не уходят
+                        за край: на узком окне пять пунктов с подписями плюс
+                        «Ещё» в одну строку не помещаются, а прокрутки без
+                        полосы не видно. WrapPanel переносит их на вторую
+                        строку — полоса навигации сама становится выше.
+                    -->
+                    <WrapPanel x:Name="Nav" Grid.Column="0" Orientation="Horizontal" Margin="0,10">
+                        <RadioButton x:Name="RailStatus" Style="{StaticResource NavTab}" Content="Главная" Tag="status" local:MenuIcon.Glyph="&#xE80F;" IsChecked="True" Checked="OnSection" />
+                        <RadioButton Style="{StaticResource NavTab}" Content="VPN" Tag="vpn" local:MenuIcon.Glyph="&#xE774;" Checked="OnSection" />
+                        <RadioButton Style="{StaticResource NavTab}" Content="Десинк" Tag="desync" local:MenuIcon.Glyph="&#xE9E9;" Checked="OnSection" />
+                        <RadioButton Style="{StaticResource NavTab}" Content="Маршруты" Tag="routes" local:MenuIcon.Glyph="&#xE816;" Checked="OnSection" />
+                        <RadioButton Style="{StaticResource NavTab}" Content="TG Proxy" Tag="tgproxy" local:MenuIcon.Glyph="&#xE724;" Checked="OnSection" />
+                    </WrapPanel>
 
                     <!--
                         «Ещё» — единственный выпадающий пункт: остальные
@@ -286,5 +290,4 @@
                 </Grid>
             </Grid>
         </Grid>
-    </Grid>
 </Window>

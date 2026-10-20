@@ -184,6 +184,11 @@ public static class ConnectionStatus
     /// </summary>
     private static bool FinishStarting(ConnectionSnapshot snapshot)
     {
+        // Запуск начинают через BeginStarting, который и ставит время. Если
+        // его нет — возвращаться некуда: считаем, что запуск уже кончился.
+        if (_startingSince is not { } since)
+            return false;
+
         var services = snapshot.Running ? snapshot.State!.Services : [];
 
         bool ready = services.Count > 0 && services.All(s => s.Health == ServiceHealth.Healthy);
@@ -192,10 +197,10 @@ public static class ConnectionStatus
         // Ни состояния, ни живого супервизора, ни запуска в очереди — значит,
         // он ушёл, не подняв движков. Ждать тут все 90 с незачем.
         bool gone = !snapshot.Running && !snapshot.Coming
-            && DateTimeOffset.Now - _startingSince!.Value > TimeSpan.FromSeconds(3);
+            && DateTimeOffset.Now - since > TimeSpan.FromSeconds(3);
 
         if (!(ready || gaveUp || gone
-              || DateTimeOffset.Now - _startingSince.Value > StartupPatience))
+              || DateTimeOffset.Now - since > StartupPatience))
             return false;
 
         _startingSince = null;
