@@ -166,7 +166,7 @@ Light**, светлая и спокойная, с фиолетовым акце�
 | `Card` | карточка: поверхность, тонкая рамка, скругление |
 | `CardRaised` | карточка с мягкой тенью — плитки, меню |
 | `PageHead` | шапка раздела |
-| `PageTitle`, `SectionTitle`, `CardTitle`, `DialogTitle`, `Body`, `Note`, `Caption`, `Mono` | шкала текста |
+| `PageTitle`, `SectionTitle`, `CardTitle`, `RowTitle`, `DialogTitle`, `Body`, `Note`, `Caption`, `Mono` | шкала текста |
 | `Ghost`, `Primary`, `Destructive`, `IconGhost`, `QuickTile` | кнопки |
 | `Choice`, `Folder` | строки выбора и папки |
 | `Segmented`, `Segment` | переключатель равноправных вариантов |

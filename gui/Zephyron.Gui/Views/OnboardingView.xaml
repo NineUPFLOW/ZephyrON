@@ -219,7 +219,7 @@
                                     <TextBlock Style="{StaticResource TileGlyph}" Text="&#xE9E9;" Foreground="{DynamicResource Accent}" />
                                 </Border>
                                 <StackPanel Grid.Column="1">
-                                    <TextBlock x:Name="PickDesyncName" FontWeight="SemiBold" FontSize="15" />
+                                    <TextBlock x:Name="PickDesyncName" Style="{StaticResource CardTitle}" />
                                     <TextBlock Style="{StaticResource Caption}" Margin="0,4,0,0" TextWrapping="Wrap"
                                                Text="Чинит блокировки прямо в вашем соединении: портит рукопожатие так, что фильтр оператора не узнаёт имя сайта. Трафик идёт напрямую, адрес остаётся домашним, подписка не нужна. Не поможет там, где отказывают по стране (ChatGPT) или режут по адресу (Telegram, Instagram)." />
                                 </StackPanel>
@@ -236,7 +236,7 @@
                                     <TextBlock Style="{StaticResource TileGlyph}" Text="&#xE774;" Foreground="{DynamicResource Accent}" />
                                 </Border>
                                 <StackPanel Grid.Column="1">
-                                    <TextBlock x:Name="PickTunnelName" FontWeight="SemiBold" FontSize="15" />
+                                    <TextBlock x:Name="PickTunnelName" Style="{StaticResource CardTitle}" />
                                     <TextBlock Style="{StaticResource Caption}" Margin="0,4,0,0" TextWrapping="Wrap"
                                                Text="Весь трафик — через VPN, кроме поставленного «напрямую». Как обычный VPN-клиент: адрес зарубежный, открывается всё, что открывается через ваш сервер. Российские сайты тоже увидят зарубежный адрес. Нужна подписка или WARP." />
                                     <TextBlock x:Name="PickTunnelNote" Style="{StaticResource Caption}" Margin="0,4,0,0"
@@ -256,7 +256,7 @@
                                     <TextBlock Style="{StaticResource TileGlyph}" Text="&#xE8AB;" Foreground="{DynamicResource Accent}" />
                                 </Border>
                                 <StackPanel Grid.Column="1">
-                                    <TextBlock x:Name="PickRouteName" FontWeight="SemiBold" FontSize="15" />
+                                    <TextBlock x:Name="PickRouteName" Style="{StaticResource CardTitle}" />
                                     <TextBlock Style="{StaticResource Caption}" Margin="0,4,0,0" TextWrapping="Wrap"
                                                Text="Оба сразу. Что в «Маршрутах» стоит «через VPN», уходит в туннель — с зарубежным адресом; остальное идёт напрямую, и закрытое по имени чинит десинк. Российские сервисы видят домашний адрес. Без подписки работает как «Десинк»." />
                                 </StackPanel>

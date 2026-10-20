@@ -68,9 +68,7 @@
                                         <ColumnDefinition Width="*" />
                                     </Grid.ColumnDefinitions>
 
-                                    <TextBlock Grid.Column="0" Text="{Binding Name}"
-                                               FontWeight="SemiBold" FontSize="15"
-                                               TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                                    <TextBlock Grid.Column="0" Text="{Binding Name}" Style="{StaticResource RowTitle}" />
 
                                     <Border Grid.Column="1" CornerRadius="8" Padding="9,1" Margin="10,0,0,0"
                                             HorizontalAlignment="Left" VerticalAlignment="Center"
@@ -209,8 +207,7 @@
                                         <ColumnDefinition Width="*" />
                                     </Grid.ColumnDefinitions>
 
-                                    <TextBlock Grid.Column="0" Text="{Binding Name}" FontWeight="SemiBold" FontSize="15"
-                                               TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                                    <TextBlock Grid.Column="0" Text="{Binding Name}" Style="{StaticResource RowTitle}" />
 
                                     <Border Grid.Column="1" CornerRadius="8" Padding="9,1" Margin="10,0,0,0"
                                             HorizontalAlignment="Left" VerticalAlignment="Center"

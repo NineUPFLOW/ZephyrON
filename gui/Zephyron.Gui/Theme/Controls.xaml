@@ -75,6 +75,20 @@
         <Setter Property="VerticalAlignment" Value="Center" />
     </Style>
 
+    <Style x:Key="RowTitle" TargetType="TextBlock">
+        <!--
+            Подпись строки в списке: одна строка и многоточие. Ширины одной
+            строки на русских названиях не хватает, а перенос ломал бы ряд
+            в столбик по слову — потому обрезка, а не CardTitle.
+        -->
+        <Setter Property="FontFamily" Value="{DynamicResource UiFont}" />
+        <Setter Property="Foreground" Value="{DynamicResource Text}" />
+        <Setter Property="FontSize" Value="15" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+
     <Style x:Key="CardTitle" TargetType="TextBlock">
         <Setter Property="FontFamily" Value="{DynamicResource UiFont}" />
         <Setter Property="Foreground" Value="{DynamicResource Text}" />
