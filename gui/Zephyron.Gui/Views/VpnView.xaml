@@ -562,7 +562,7 @@
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>
 
-                            <TextBlock x:Name="RecentEmpty" Style="{StaticResource Caption}" TextWrapping="Wrap"
+                            <TextBlock x:Name="RecentEmpty" Style="{StaticResource Empty}" TextWrapping="Wrap"
                                        Margin="0,10,0,0" Visibility="Collapsed"
                                        Text="Пока пусто: журнал заполняется, пока движки работают и окно открыто." />
                         </StackPanel>

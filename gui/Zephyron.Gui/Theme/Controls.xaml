@@ -1189,8 +1189,13 @@
         выглядит как сломанный, и человек не понимает, ждать ему или чинить.
     -->
     <Style x:Key="Empty" TargetType="TextBlock">
+        <!--
+            Подпись пустого списка. Цвет — Muted, а не Faint: Faint тема
+            сверяет только по порогу крупного текста (3:1), а это обычный
+            кегль, и на нём он читается впритык.
+        -->
         <Setter Property="FontFamily" Value="{DynamicResource UiFont}" />
-        <Setter Property="Foreground" Value="{DynamicResource Faint}" />
+        <Setter Property="Foreground" Value="{DynamicResource Muted}" />
         <Setter Property="FontSize" Value="13" />
         <Setter Property="TextWrapping" Value="Wrap" />
         <Setter Property="TextAlignment" Value="Center" />

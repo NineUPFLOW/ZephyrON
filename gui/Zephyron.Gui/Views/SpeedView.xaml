@@ -275,7 +275,7 @@
 
                             <StackPanel x:Name="HistoryRows" />
 
-                            <TextBlock x:Name="HistoryEmpty" Style="{StaticResource Caption}" Margin="10,6,0,4"
+                            <TextBlock x:Name="HistoryEmpty" Style="{StaticResource Empty}" Margin="10,6,0,4"
                                        Text="Замеров ещё не было." />
                         </StackPanel>
                     </Border>

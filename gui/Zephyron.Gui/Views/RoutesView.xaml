@@ -515,7 +515,7 @@
                                     </ItemsControl.ItemTemplate>
                                 </ItemsControl>
 
-                                <TextBlock Text="Пусто — перетащите сюда маршруты или добавьте свой." Style="{StaticResource Caption}"
+                                <TextBlock Text="Пусто — перетащите сюда маршруты или добавьте свой." Style="{StaticResource Empty}"
                                            Margin="12,4,12,8" Visibility="{Binding EmptyShown}" />
 
                                 <!-- По макету 13.10: свой сайт, адрес или подсеть — сразу в эту папку. -->
